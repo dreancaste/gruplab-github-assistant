@@ -30,7 +30,7 @@ export function ActividadFeed({
 }: {
   actividad: Actividad[];
   perfiles: Record<string, Perfil | undefined>;
-  nombresGrupo?: Record<string, string>;
+  nombresGrupo?: Record<string, string> | undefined;
 }) {
   if (actividad.length === 0) {
     return <EstadoVacio icon={History} titulo="Sin actividad todavía" texto="Cada vez que alguien cree, mueva o edite una tarea va a aparecer acá." />;

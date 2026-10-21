@@ -125,9 +125,15 @@ function Landing() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link to={logueado ? "/espacios" : "/auth"} search={logueado ? undefined : { modo: "registro" }}>
-                Empezar gratis <ArrowRight />
-              </Link>
+              {logueado ? (
+                <Link to="/espacios">
+                  Empezar gratis <ArrowRight />
+                </Link>
+              ) : (
+                <Link to="/auth" search={{ modo: "registro" }}>
+                  Empezar gratis <ArrowRight />
+                </Link>
+              )}
             </Button>
             <Button asChild size="lg" variant="outline">
               <a href="#como-funciona">Cómo funciona</a>
