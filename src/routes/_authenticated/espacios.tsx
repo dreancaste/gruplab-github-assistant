@@ -200,7 +200,7 @@ function CrearAulaDialog({ open, onClose }: { open: boolean; onClose: () => void
     setCargando(true);
     const { data, error } = await supabase.rpc("crear_aula", { _nombre: nombre, _descripcion: descripcion });
     setCargando(false);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     toast.success("Aula creada. Compartí el código con tus alumnos.");
     onClose();
@@ -246,7 +246,7 @@ function CrearTableroDialog({ open, onClose }: { open: boolean; onClose: () => v
     setCargando(true);
     const { data, error } = await supabase.rpc("crear_tablero", { _nombre: nombre });
     setCargando(false);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     onClose();
     setNombre("");
@@ -286,7 +286,7 @@ function UnirmeDialog({ open, onClose }: { open: boolean; onClose: () => void })
     setCargando(true);
     const { data, error } = await supabase.rpc("unirse_con_codigo", { _codigo: codigo });
     setCargando(false);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     onClose();
     setCodigo("");

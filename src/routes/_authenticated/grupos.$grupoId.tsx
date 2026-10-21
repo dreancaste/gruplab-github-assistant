@@ -185,7 +185,7 @@ function Integrantes() {
   async function salir() {
     if (!confirm("¿Seguro que querés salir del grupo?")) return;
     const { data, error } = await supabase.rpc("quitar_integrante", { _grupo_id: grupoId, _user_id: g.uid });
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     toast.success(data ? "Saliste y el tablero se eliminó" : "Saliste del grupo");
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     if (g.grupo.aula_id && !g.esStaff) {
@@ -198,7 +198,7 @@ function Integrantes() {
   async function eliminarGrupo() {
     if (!confirm("¿Eliminar el grupo con todas sus tareas y archivos? No se puede deshacer.")) return;
     const { error } = await supabase.from("grupos").delete().eq("id", grupoId);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     toast.success("Grupo eliminado");
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     if (g.grupo.aula_id) {

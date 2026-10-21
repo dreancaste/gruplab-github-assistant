@@ -16,10 +16,10 @@ export function Avatar({
   size = "md",
   className,
 }: {
-  nombre?: string | null;
-  id?: string | null;
+  nombre?: string | null | undefined;
+  id?: string | null | undefined;
   size?: "sm" | "md" | "lg";
-  className?: string;
+  className?: string | undefined;
 }) {
   const s = size === "sm" ? "h-7 w-7 text-[10px]" : size === "lg" ? "h-11 w-11 text-sm" : "h-9 w-9 text-xs";
   return (

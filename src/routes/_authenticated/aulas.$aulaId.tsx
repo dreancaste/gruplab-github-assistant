@@ -50,7 +50,7 @@ function AulaPage() {
   async function eliminarAula() {
     if (!confirm(`¿Eliminar "${data.aula.nombre}" con todos sus grupos, tareas y archivos? No se puede deshacer.`)) return;
     const { error } = await supabase.from("aulas").delete().eq("id", aulaId);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     toast.success("Aula eliminada");
     navigate({ to: "/espacios" });
@@ -59,7 +59,7 @@ function AulaPage() {
   async function salirAula() {
     if (!confirm("¿Salir de esta materia? También vas a salir de tu grupo.")) return;
     const { error } = await supabase.rpc("salir_de_aula", { _aula_id: aulaId });
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     navigate({ to: "/espacios" });
   }
@@ -303,7 +303,7 @@ function IntegrantesAula() {
 
   async function cambiarRol(userId: string, rol: Rol) {
     const { error } = await supabase.rpc("cambiar_rol_aula", { _aula_id: aulaId, _user_id: userId, _rol: rol });
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     toast.success("Rol actualizado");
     qc.invalidateQueries({ queryKey: ["aula", aulaId] });
   }
@@ -314,7 +314,7 @@ function IntegrantesAula() {
       await supabase.rpc("quitar_integrante", { _grupo_id: g.id, _user_id: userId });
     }
     const { error } = await supabase.from("aula_miembros").delete().eq("aula_id", aulaId).eq("user_id", userId);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     qc.invalidateQueries({ queryKey: ["aula", aulaId] });
   }
 
@@ -383,7 +383,7 @@ function CrearGrupoDialog({
     setCargando(true);
     const { data, error } = await supabase.rpc("crear_grupo", { _aula_id: aulaId, _nombre: nombre });
     setCargando(false);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["aula", aulaId] });
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     setNombre("");

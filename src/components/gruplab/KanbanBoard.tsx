@@ -114,7 +114,7 @@ function Columna({
     const { error } = await supabase
       .from("cards")
       .insert({ grupo_id: grupoId, titulo: t, estado: estado.id, orden: Date.now() });
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     qc.invalidateQueries({ queryKey: ["cards", grupoId] });
     qc.invalidateQueries({ queryKey: ["actividad", grupoId] });
   }

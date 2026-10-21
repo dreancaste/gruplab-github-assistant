@@ -98,7 +98,7 @@ function Contenido({
     setGuardando(true);
     const { error } = await supabase.from("cards").update(patch).eq("id", card.id);
     setGuardando(false);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     if (ok) toast.success(ok);
     refrescar();
   }
@@ -106,7 +106,7 @@ function Contenido({
   async function eliminar() {
     if (!confirm("¿Eliminar esta tarea? No se puede deshacer.")) return;
     const { error } = await supabase.from("cards").delete().eq("id", card.id);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     refrescar();
     onClose();
   }
@@ -299,7 +299,7 @@ function Adjuntos({
         }
         const limpio = file.name.replace(/[^\w.\-]+/g, "_");
         const path = `${grupoId}/${card.id}/${Date.now()}-${limpio}`;
-        const up = await supabase.storage.from("adjuntos").upload(path, file, { contentType: file.type || undefined });
+        const up = await supabase.storage.from("adjuntos").upload(path, file, file.type ? { contentType: file.type } : {});
         if (up.error) throw up.error;
         const { error } = await supabase.from("card_adjuntos").insert({
           card_id: card.id,
@@ -324,14 +324,14 @@ function Adjuntos({
 
   async function descargar(path: string, nombre: string) {
     const { data, error } = await supabase.storage.from("adjuntos").createSignedUrl(path, 60, { download: nombre });
-    if (error || !data) return toast.error("No pudimos abrir el archivo");
+    if (error || !data) { toast.error("No pudimos abrir el archivo"); return; }
     window.open(data.signedUrl, "_blank", "noopener");
   }
 
   async function borrar(id: string, path: string) {
     if (!confirm("¿Eliminar este archivo?")) return;
     const { error } = await supabase.from("card_adjuntos").delete().eq("id", id);
-    if (error) return toast.error(mensajeError(error));
+    if (error) { toast.error(mensajeError(error)); return; }
     await supabase.storage.from("adjuntos").remove([path]);
     qc.invalidateQueries({ queryKey: ["adjuntos", card.id] });
   }

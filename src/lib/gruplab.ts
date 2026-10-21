@@ -29,7 +29,12 @@ export function mensajeError(e: unknown): string {
   return "Algo salió mal";
 }
 
-function check<T>(res: { data: T; error: { message: string } | null }): T {
+function check<T>(res: { data: T; error: { message: string } | null }): NonNullable<T> {
+  if (res.error) throw new Error(res.error.message);
+  return (res.data ?? []) as NonNullable<T>;
+}
+
+function checkMaybe<T>(res: { data: T | null; error: { message: string } | null }): T | null {
   if (res.error) throw new Error(res.error.message);
   return res.data;
 }
@@ -103,7 +108,7 @@ export const aulaQuery = (aulaId: string) =>
     queryKey: ["aula", aulaId],
     queryFn: async () => {
       const uid = await miUsuarioId();
-      const aula = check(await supabase.from("aulas").select("*").eq("id", aulaId).maybeSingle());
+      const aula = checkMaybe(await supabase.from("aulas").select("*").eq("id", aulaId).maybeSingle());
       if (!aula) throw new Error("No encontramos esta aula o no participás de ella");
       const [miembros, grupos, gm] = await Promise.all([
         supabase.from("aula_miembros").select("*").eq("aula_id", aulaId),
@@ -174,7 +179,7 @@ export const grupoQuery = (grupoId: string) =>
     queryKey: ["grupo", grupoId],
     queryFn: async () => {
       const uid = await miUsuarioId();
-      const grupo = check(await supabase.from("grupos").select("*").eq("id", grupoId).maybeSingle());
+      const grupo = checkMaybe(await supabase.from("grupos").select("*").eq("id", grupoId).maybeSingle());
       if (!grupo) throw new Error("No encontramos este grupo o no tenés acceso");
       const [gm, aula, aulaMiembros] = await Promise.all([
         supabase.from("grupo_miembros").select("*").eq("grupo_id", grupoId).order("created_at"),
