@@ -51,7 +51,11 @@ function AuthPage() {
   const [cargando, setCargando] = useState(false);
   const [enviado, setEnviado] = useState<null | "registro" | "olvide">(null);
 
-  const irADestino = () => navigate({ to: destinoSeguro(search.redirect), replace: true });
+  const irADestino = () => {
+    const guardado = sessionStorage.getItem("gruplab:redirect") ?? undefined;
+    sessionStorage.removeItem("gruplab:redirect");
+    navigate({ to: destinoSeguro(search.redirect ?? guardado), replace: true });
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {

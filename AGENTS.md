@@ -8,3 +8,13 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+# Project rules
+
+- GrupLab is a TanStack Start rebuild of the Angular/Amplify repo `dreancaste/gruplab`; keep its domain model (aulas, grupos, cards, actividad) and Spanish UI copy so it stays recognizable to its users.
+- Multi-row or permission-sensitive writes (create aula/grupo/tablero, join by code, add/remove members, role changes) go through SECURITY DEFINER RPCs in Postgres, not client inserts — they enforce rules like "one group per aula" atomically.
+- The activity log is written only by database triggers on cards, card_adjuntos and grupo_miembros (no client insert policy), so participation numbers cannot be faked from the browser.
+- Grading fields (puntuacion, comentario_profesor) are guarded by a BEFORE trigger that only lets aula staff change them; keep UI checks as convenience only.
+- Participation math lives in `src/lib/participacion.ts` as a pure function with tests; change it there, not inside components.
+- Attachments live in the private `adjuntos` bucket under `{grupo_id}/{card_id}/...`; storage policies key off the first path segment, so keep that layout.
+- Signed-in pages live under `src/routes/_authenticated/` and read data with the browser client (RLS applies) via queryOptions in `src/lib/gruplab.ts`.

@@ -14,6 +14,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedEspaciosRouteImport } from './routes/_authenticated/espacios'
+import { Route as AuthenticatedAulasAulaIdRouteImport } from './routes/_authenticated/aulas.$aulaId'
+import { Route as AuthenticatedGruposGrupoIdRouteImport } from './routes/_authenticated/grupos.$grupoId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,18 +41,34 @@ const AuthenticatedEspaciosRoute = AuthenticatedEspaciosRouteImport.update({
   path: '/espacios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAulasAulaIdRoute =
+  AuthenticatedAulasAulaIdRouteImport.update({
+    id: '/aulas/$aulaId',
+    path: '/aulas/$aulaId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGruposGrupoIdRoute =
+  AuthenticatedGruposGrupoIdRouteImport.update({
+    id: '/grupos/$grupoId',
+    path: '/grupos/$grupoId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/espacios': typeof AuthenticatedEspaciosRoute
+  '/aulas/$aulaId': typeof AuthenticatedAulasAulaIdRoute
+  '/grupos/$grupoId': typeof AuthenticatedGruposGrupoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/espacios': typeof AuthenticatedEspaciosRoute
+  '/aulas/$aulaId': typeof AuthenticatedAulasAulaIdRoute
+  '/grupos/$grupoId': typeof AuthenticatedGruposGrupoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +77,26 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/espacios': typeof AuthenticatedEspaciosRoute
+  '/_authenticated/aulas/$aulaId': typeof AuthenticatedAulasAulaIdRoute
+  '/_authenticated/grupos/$grupoId': typeof AuthenticatedGruposGrupoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/reset-password' | '/espacios'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/espacios'
+    | '/aulas/$aulaId'
+    | '/grupos/$grupoId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/reset-password' | '/espacios'
+  to:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/espacios'
+    | '/aulas/$aulaId'
+    | '/grupos/$grupoId'
   id:
     | '__root__'
     | '/'
@@ -72,6 +104,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/espacios'
+    | '/_authenticated/aulas/$aulaId'
+    | '/_authenticated/grupos/$grupoId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -118,15 +152,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEspaciosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/aulas/$aulaId': {
+      id: '/_authenticated/aulas/$aulaId'
+      path: '/aulas/$aulaId'
+      fullPath: '/aulas/$aulaId'
+      preLoaderRoute: typeof AuthenticatedAulasAulaIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/grupos/$grupoId': {
+      id: '/_authenticated/grupos/$grupoId'
+      path: '/grupos/$grupoId'
+      fullPath: '/grupos/$grupoId'
+      preLoaderRoute: typeof AuthenticatedGruposGrupoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedEspaciosRoute: typeof AuthenticatedEspaciosRoute
+  AuthenticatedAulasAulaIdRoute: typeof AuthenticatedAulasAulaIdRoute
+  AuthenticatedGruposGrupoIdRoute: typeof AuthenticatedGruposGrupoIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEspaciosRoute: AuthenticatedEspaciosRoute,
+  AuthenticatedAulasAulaIdRoute: AuthenticatedAulasAulaIdRoute,
+  AuthenticatedGruposGrupoIdRoute: AuthenticatedGruposGrupoIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
