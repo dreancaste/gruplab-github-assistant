@@ -13,9 +13,9 @@ import { Logo } from "@/components/gruplab/Logo";
 type Modo = "ingreso" | "registro" | "olvide";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>): { modo?: Modo; redirect?: string } => ({
-    modo: s.modo === "registro" || s.modo === "olvide" ? s.modo : undefined,
-    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  validateSearch: (s: Record<string, unknown>): { modo?: Modo | undefined; redirect?: string | undefined } => ({
+    modo: s["modo"] === "registro" || s["modo"] === "olvide" ? (s["modo"] as Modo) : undefined,
+    redirect: typeof s["redirect"] === "string" ? (s["redirect"] as string) : undefined,
   }),
   head: () => ({
     meta: [

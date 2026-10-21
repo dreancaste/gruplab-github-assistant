@@ -34,7 +34,7 @@ function check<T>(res: { data: T; error: { message: string } | null }): NonNulla
   return (res.data ?? []) as NonNullable<T>;
 }
 
-function checkMaybe<T>(res: { data: T | null; error: { message: string } | null }): T | null {
+function checkMaybe<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message);
   return res.data;
 }
