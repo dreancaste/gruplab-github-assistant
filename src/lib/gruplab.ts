@@ -10,6 +10,15 @@ export type Card = Database["public"]["Tables"]["cards"]["Row"];
 export type Adjunto = Database["public"]["Tables"]["card_adjuntos"]["Row"];
 export type Actividad = Database["public"]["Tables"]["actividad"]["Row"];
 export type Perfil = Database["public"]["Tables"]["profiles"]["Row"];
+export type EvaluacionPar = Database["public"]["Tables"]["evaluaciones_pares"]["Row"];
+export type Solicitud = Database["public"]["Tables"]["solicitudes_grupo"]["Row"];
+export type ParesFila = Database["public"]["Functions"]["resumen_pares"]["Returns"][number];
+
+export const ESFUERZOS: { valor: 1 | 3 | 5; label: string }[] = [
+  { valor: 1, label: "Bajo" },
+  { valor: 3, label: "Medio" },
+  { valor: 5, label: "Alto" },
+];
 
 export const ESTADOS: { id: Estado; label: string; dot: string; bg: string }[] = [
   { id: "backlog", label: "Backlog", dot: "bg-estado-backlog", bg: "bg-muted" },
@@ -126,7 +135,7 @@ export const aulaQuery = (aulaId: string) =>
           ? check(
               await supabase
                 .from("cards")
-                .select("grupo_id, estado, puntuacion")
+                .select("id, grupo_id, estado, puntuacion, peso_esfuerzo, asignados, fecha_limite, completada_en")
                 .in("grupo_id", grupoIds),
             )
           : [];
@@ -138,6 +147,7 @@ export const aulaQuery = (aulaId: string) =>
         esStaff,
         perfiles: perfs,
         miembros: miembrosRows,
+        cards,
         grupos: gruposRows.map((g) => {
           const cs = cards.filter((c) => c.grupo_id === g.id);
           const puntuadas = cs.filter((c) => c.puntuacion != null);
@@ -255,6 +265,57 @@ export const adjuntosQuery = (cardId: string) =>
       ),
   });
 
+export const paresQuery = (grupoIds: string[]) =>
+  queryOptions({
+    queryKey: ["pares", grupoIds],
+    queryFn: async (): Promise<ParesFila[]> => {
+      if (grupoIds.length === 0) return [];
+      return check(await supabase.rpc("resumen_pares", { _grupo_ids: grupoIds }));
+    },
+  });
+
+export const misEvaluacionesQuery = (grupoId: string) =>
+  queryOptions({
+    queryKey: ["mis-evaluaciones", grupoId],
+    queryFn: async () => {
+      const uid = await miUsuarioId();
+      return check(
+        await supabase.from("evaluaciones_pares").select("*").eq("grupo_id", grupoId).eq("evaluador_id", uid),
+      );
+    },
+  });
+
+export const solicitudesAulaQuery = (aulaId: string) =>
+  queryOptions({
+    queryKey: ["solicitudes-aula", aulaId],
+    queryFn: async () =>
+      check(
+        await supabase
+          .from("solicitudes_grupo")
+          .select("*")
+          .eq("aula_id", aulaId)
+          .eq("estado", "pendiente")
+          .order("created_at"),
+      ),
+  });
+
+export const solicitudesGrupoQuery = (grupoId: string) =>
+  queryOptions({
+    queryKey: ["solicitudes-grupo", grupoId],
+    queryFn: async () => {
+      const rows = check(
+        await supabase
+          .from("solicitudes_grupo")
+          .select("*")
+          .eq("grupo_id", grupoId)
+          .eq("estado", "pendiente")
+          .order("created_at"),
+      );
+      const perfs = await perfiles(rows.map((r) => r.user_id));
+      return { solicitudes: rows, perfiles: perfs };
+    },
+  });
+
 export const ACCION_TEXTO: Record<string, string> = {
   crear: "creó la tarea",
   mover: "movió",
@@ -264,6 +325,8 @@ export const ACCION_TEXTO: Record<string, string> = {
   adjuntar: "adjuntó",
   sumar_integrante: "sumó a",
   quitar_integrante: "quitó a",
+  revisar: "revisó",
+  reabrir: "reabrió",
 };
 
 export function formatoTamano(bytes: number) {
