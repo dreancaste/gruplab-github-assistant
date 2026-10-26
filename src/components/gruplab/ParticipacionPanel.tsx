@@ -1,26 +1,45 @@
 import { useMemo } from "react";
-import { AlertTriangle, BarChart3 } from "lucide-react";
+import { AlertTriangle, BarChart3, Info } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { calcularParticipacion } from "@/lib/participacion";
-import type { Actividad, Perfil } from "@/lib/gruplab";
+import {
+  calcularParticipacion,
+  formulaVigente,
+  type ActividadMinima,
+  type CardMetrica,
+  type ParesResumen,
+} from "@/lib/participacion";
+import type { Perfil } from "@/lib/gruplab";
 import { Avatar } from "./Avatar";
 import { EstadoVacio } from "./EstadoVacio";
 
 const BARRAS = ["bg-primary", "bg-secondary", "bg-sun", "bg-mint", "bg-ink"];
 
+function pct(n: number | null) {
+  if (n == null) return "—";
+  return `${(Math.round(n * 10) / 10).toLocaleString("es-AR")}%`;
+}
+
 export function ParticipacionPanel({
   actividad,
   integrantes,
   perfiles,
+  cards,
+  pares,
   compacto = false,
 }: {
-  actividad: Pick<Actividad, "user_id" | "accion" | "created_at">[];
+  actividad: (ActividadMinima & { created_at: string })[];
   integrantes: string[];
   perfiles: Record<string, Perfil | undefined>;
+  cards: CardMetrica[];
+  pares: ParesResumen[];
   compacto?: boolean;
 }) {
-  const filas = useMemo(() => calcularParticipacion(actividad, integrantes), [actividad, integrantes]);
-  const total = filas.reduce((s, f) => s + f.acciones, 0);
+  const filas = useMemo(
+    () => calcularParticipacion(integrantes, cards, actividad, pares),
+    [integrantes, cards, actividad, pares],
+  );
+  const formula = useMemo(() => formulaVigente(filas), [filas]);
+  const hayDatos = filas.some((f) => f.participacion != null);
 
   const porDia = useMemo(() => {
     const dias: { dia: string; acciones: number }[] = [];
@@ -43,59 +62,89 @@ export function ParticipacionPanel({
   }
 
   return (
-    <div className={compacto ? "space-y-4" : "grid gap-6 lg:grid-cols-[1.3fr_1fr]"}>
+    <div className={compacto ? "space-y-4" : "grid gap-6 lg:grid-cols-[1.4fr_1fr]"}>
       <div className="brut rounded-2xl bg-card p-5">
-        <div className="flex items-baseline justify-between">
-          <h3 className="text-lg font-bold">Aporte por integrante</h3>
-          <span className="text-sm text-muted-foreground">{total} acciones</span>
-        </div>
-        {total > 0 && (
+        <h3 className="text-lg font-bold">Participación del equipo</h3>
+        {hayDatos && (
           <div className="mt-4 flex h-5 overflow-hidden rounded-full border-2 border-ink">
             {filas
-              .filter((f) => f.porcentaje > 0)
+              .filter((f) => (f.participacion ?? 0) > 0)
               .map((f, i) => (
                 <span
                   key={f.userId}
                   className={BARRAS[i % BARRAS.length]}
-                  style={{ width: `${f.porcentaje}%` }}
-                  title={`${perfiles[f.userId]?.nombre}: ${f.porcentaje}%`}
+                  style={{ width: `${f.participacion}%` }}
+                  title={`${perfiles[f.userId]?.nombre}: ${pct(f.participacion)}`}
                 />
               ))}
           </div>
         )}
-        <ul className="mt-5 space-y-3">
+        <ul className="mt-5 space-y-4">
           {filas.map((f, i) => (
-            <li key={f.userId} className="flex items-center gap-3">
-              <Avatar id={f.userId} nombre={perfiles[f.userId]?.nombre} size="sm" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="truncate font-semibold">{perfiles[f.userId]?.nombre ?? "Integrante"}</span>
-                  <span className="font-mono font-bold">{f.porcentaje}%</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
-                  <div className={`h-full ${BARRAS[i % BARRAS.length]}`} style={{ width: `${f.porcentaje}%` }} />
+            <li key={f.userId}>
+              <div className="flex items-center gap-3">
+                <Avatar id={f.userId} nombre={perfiles[f.userId]?.nombre} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex items-center gap-1.5 truncate font-semibold">
+                      {perfiles[f.userId]?.nombre ?? "Integrante"}
+                      {f.baja && (
+                        <span title="Participación baja" className="text-destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-mono text-base font-bold">{pct(f.participacion)}</span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                    <div className={`h-full ${BARRAS[i % BARRAS.length]}`} style={{ width: `${f.participacion ?? 0}%` }} />
+                  </div>
                 </div>
               </div>
-              <span className="w-16 text-right text-xs text-muted-foreground">{f.acciones} acc.</span>
-              {f.baja && (
-                <span title="Participación baja" className="text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                </span>
+              {hayDatos && (
+                <div className="mt-2 flex flex-wrap gap-1.5 pl-11">
+                  <Chip label="Esfuerzo" valor={pct(f.esfuerzo)} />
+                  <Chip label="Puntualidad" valor={pct(f.puntualidad)} />
+                  <Chip label="Calidad" valor={pct(f.calidad)} />
+                  <Chip label="Colaboración" valor={pct(f.colaboracion)} />
+                  <Chip
+                    label="Pares"
+                    valor={f.pares != null ? pct(f.pares) : f.evaluacionesRecibidas ? `${f.evaluacionesRecibidas} eval.` : "—"}
+                  />
+                </div>
               )}
             </li>
           ))}
         </ul>
-        {total === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">Todavía no hay acciones registradas.</p>
+        {!hayDatos && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Todavía no hay tareas terminadas con personas asignadas. El porcentaje aparece cuando el grupo complete la
+            primera.
+          </p>
         )}
-        <p className="mt-5 text-xs text-muted-foreground">
-          Se cuentan tareas creadas, movidas, editadas, eliminadas y archivos adjuntados. El ícono{" "}
-          <AlertTriangle className="inline h-3 w-3 text-destructive" /> marca a quien aporta menos de la mitad de
-          una parte equitativa.
-        </p>
+        <div className="mt-5 rounded-xl border-2 border-ink/15 bg-muted/60 p-3 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5 font-semibold text-foreground">
+            <Info className="h-3.5 w-3.5" /> Cómo se calcula
+          </p>
+          <p className="mt-1">
+            Esfuerzo de las tareas terminadas (50%), puntualidad respecto de la fecha límite (20%), calidad sin
+            retrabajo y revisiones a compañeros (15%) y evaluación entre pares (15%). Si un factor todavía no tiene
+            datos, su peso se reparte entre los demás.
+          </p>
+          {formula && (
+            <p className="mt-1.5 font-mono text-[11px] text-foreground">
+              Ahora: esfuerzo {pct(formula.esfuerzo)} · puntualidad {pct(formula.puntualidad)} · calidad/colab.{" "}
+              {pct(formula.calidadColaboracion)} · pares {pct(formula.pares)}
+            </p>
+          )}
+          <p className="mt-1.5">
+            <AlertTriangle className="inline h-3 w-3 text-destructive" /> marca a quien aporta menos de la mitad de una
+            parte equitativa.
+          </p>
+        </div>
       </div>
       {!compacto && (
-        <div className="brut rounded-2xl bg-card p-5">
+        <div className="brut h-fit rounded-2xl bg-card p-5">
           <h3 className="text-lg font-bold">Actividad de los últimos 14 días</h3>
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -113,5 +162,13 @@ export function ParticipacionPanel({
         </div>
       )}
     </div>
+  );
+}
+
+function Chip({ label, valor }: { label: string; valor: string }) {
+  return (
+    <span className="rounded-md border border-ink/25 bg-paper px-1.5 py-0.5 text-[11px]">
+      <span className="text-muted-foreground">{label}</span> <span className="font-mono font-bold">{valor}</span>
+    </span>
   );
 }

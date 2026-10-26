@@ -164,47 +164,116 @@ export type Database = {
       }
       cards: {
         Row: {
+          asignados: string[]
           comentario_profesor: string | null
+          completada_en: string | null
           creado_por: string | null
           created_at: string
           descripcion: string | null
           estado: Database["public"]["Enums"]["estado_card"]
+          fecha_limite: string | null
           grupo_id: string
           id: string
           orden: number
+          peso_esfuerzo: number
           puntuacion: number | null
+          revisada_en: string | null
+          revisada_por: string | null
           titulo: string
           updated_at: string
         }
         Insert: {
+          asignados?: string[]
           comentario_profesor?: string | null
+          completada_en?: string | null
           creado_por?: string | null
           created_at?: string
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["estado_card"]
+          fecha_limite?: string | null
           grupo_id: string
           id?: string
           orden?: number
+          peso_esfuerzo?: number
           puntuacion?: number | null
+          revisada_en?: string | null
+          revisada_por?: string | null
           titulo: string
           updated_at?: string
         }
         Update: {
+          asignados?: string[]
           comentario_profesor?: string | null
+          completada_en?: string | null
           creado_por?: string | null
           created_at?: string
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["estado_card"]
+          fecha_limite?: string | null
           grupo_id?: string
           id?: string
           orden?: number
+          peso_esfuerzo?: number
           puntuacion?: number | null
+          revisada_en?: string | null
+          revisada_por?: string | null
           titulo?: string
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "cards_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluaciones_pares: {
+        Row: {
+          card_id: string
+          comunicacion: number
+          coordinacion: number
+          created_at: string
+          evaluado_id: string
+          evaluador_id: string
+          grupo_id: string
+          id: string
+          responsabilidad: number
+        }
+        Insert: {
+          card_id: string
+          comunicacion: number
+          coordinacion: number
+          created_at?: string
+          evaluado_id: string
+          evaluador_id: string
+          grupo_id: string
+          id?: string
+          responsabilidad: number
+        }
+        Update: {
+          card_id?: string
+          comunicacion?: number
+          coordinacion?: number
+          created_at?: string
+          evaluado_id?: string
+          evaluador_id?: string
+          grupo_id?: string
+          id?: string
+          responsabilidad?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_pares_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_pares_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
             referencedRelation: "grupos"
@@ -307,6 +376,54 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitudes_grupo: {
+        Row: {
+          aula_id: string
+          created_at: string
+          estado: string
+          grupo_id: string
+          id: string
+          resuelta_en: string | null
+          resuelta_por: string | null
+          user_id: string
+        }
+        Insert: {
+          aula_id: string
+          created_at?: string
+          estado?: string
+          grupo_id: string
+          id?: string
+          resuelta_en?: string | null
+          resuelta_por?: string | null
+          user_id: string
+        }
+        Update: {
+          aula_id?: string
+          created_at?: string
+          estado?: string
+          grupo_id?: string
+          id?: string
+          resuelta_en?: string | null
+          resuelta_por?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_grupo_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: false
+            referencedRelation: "aulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -358,6 +475,16 @@ export type Database = {
         Args: { _e: Database["public"]["Enums"]["estado_card"] }
         Returns: string
       }
+      evaluar_par: {
+        Args: {
+          _card_id: string
+          _comunicacion: number
+          _coordinacion: number
+          _evaluado_id: string
+          _responsabilidad: number
+        }
+        Returns: undefined
+      }
       generar_codigo: { Args: never; Returns: string }
       puede_gestionar_grupo: {
         Args: { _grupo: string; _user: string }
@@ -371,11 +498,25 @@ export type Database = {
         Args: { _grupo_id: string; _user_id: string }
         Returns: boolean
       }
+      resolver_solicitud: {
+        Args: { _aceptar: boolean; _solicitud_id: string }
+        Returns: undefined
+      }
+      resumen_pares: {
+        Args: { _grupo_ids: string[] }
+        Returns: {
+          cantidad: number
+          evaluado_id: string
+          grupo_id: string
+          promedio: number
+        }[]
+      }
       rol_en_aula: {
         Args: { _aula: string; _user: string }
         Returns: Database["public"]["Enums"]["rol_aula"]
       }
       salir_de_aula: { Args: { _aula_id: string }; Returns: undefined }
+      solicitar_ingreso: { Args: { _grupo_id: string }; Returns: string }
       transferir_admin: {
         Args: { _grupo_id: string; _user_id: string }
         Returns: undefined
