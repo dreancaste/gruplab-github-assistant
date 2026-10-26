@@ -1,10 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, Crown, LogOut, Pencil, Star, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { Check, ChevronLeft, Crown, Inbox, LogOut, Pencil, Star, Trash2, UserMinus, UserPlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { actividadQuery, cardsQuery, grupoQuery, mensajeError, type Card } from "@/lib/gruplab";
+import {
+  actividadQuery,
+  cardsQuery,
+  grupoQuery,
+  mensajeError,
+  misEvaluacionesQuery,
+  paresQuery,
+  solicitudesGrupoQuery,
+  type Card,
+} from "@/lib/gruplab";
+import { estadoVencimiento } from "@/lib/vencimiento";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +43,8 @@ export const Route = createFileRoute("/_authenticated/grupos/$grupoId")({
       context.queryClient.ensureQueryData(grupoQuery(params.grupoId)),
       context.queryClient.ensureQueryData(cardsQuery(params.grupoId)),
       context.queryClient.ensureQueryData(actividadQuery(params.grupoId)),
+      context.queryClient.ensureQueryData(paresQuery([params.grupoId])),
+      context.queryClient.ensureQueryData(misEvaluacionesQuery(params.grupoId)),
     ]),
   component: GrupoPage,
 });
@@ -43,6 +55,8 @@ function GrupoPage() {
   const { data: g } = useSuspenseQuery(grupoQuery(grupoId));
   const { data: cards } = useSuspenseQuery(cardsQuery(grupoId));
   const { data: actividad } = useSuspenseQuery(actividadQuery(grupoId));
+  const { data: pares } = useSuspenseQuery(paresQuery([grupoId]));
+  const { data: misEvaluaciones } = useSuspenseQuery(misEvaluacionesQuery(grupoId));
   const [abiertaId, setAbiertaId] = useState<string | null>(null);
   const abierta = cards.find((c) => c.id === abiertaId) ?? null;
 
@@ -52,9 +66,10 @@ function GrupoPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "cards", filter: `grupo_id=eq.${grupoId}` }, () =>
         qc.invalidateQueries({ queryKey: ["cards", grupoId] }),
       )
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "actividad", filter: `grupo_id=eq.${grupoId}` }, () =>
-        qc.invalidateQueries({ queryKey: ["actividad", grupoId] }),
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "actividad", filter: `grupo_id=eq.${grupoId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["actividad", grupoId] });
+        qc.invalidateQueries({ queryKey: ["pares", [grupoId]] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -65,6 +80,17 @@ function GrupoPage() {
   const puntuadas = cards.filter((c) => c.puntuacion != null);
   const promedio = puntuadas.length ? puntuadas.reduce((s, c) => s + (c.puntuacion ?? 0), 0) / puntuadas.length : null;
   const puedeEditar = g.esMiembro || g.esStaff;
+  const vencidas = cards.filter((c) => estadoVencimiento(c.fecha_limite, c.estado) === "vencida").length;
+  const pendientesEval = useMemo(() => {
+    if (!g.esMiembro) return new Set<string>();
+    const otros = g.integrantes.filter((id) => id !== g.uid);
+    return new Set(
+      cards
+        .filter((c) => c.estado === "hecho")
+        .filter((c) => otros.some((id) => !misEvaluaciones.some((e) => e.card_id === c.id && e.evaluado_id === id)))
+        .map((c) => c.id),
+    );
+  }, [cards, misEvaluaciones, g.esMiembro, g.integrantes, g.uid]);
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-8">
@@ -93,9 +119,10 @@ function GrupoPage() {
             )}
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Tareas" valor={String(cards.length)} />
           <Stat label="Hechas" valor={cards.length ? `${Math.round((hechas / cards.length) * 100)}%` : "—"} />
+          <Stat label="Vencidas" valor={String(vencidas)} alerta={vencidas > 0} />
           <Stat label="Promedio" valor={promedio != null ? promedio.toFixed(1) : "—"} icono />
         </div>
       </div>
@@ -115,10 +142,17 @@ function GrupoPage() {
             perfiles={g.perfiles}
             puedeEditar={puedeEditar}
             onAbrir={(c: Card) => setAbiertaId(c.id)}
+            pendientesEval={pendientesEval}
           />
         </TabsContent>
         <TabsContent value="participacion" className="mt-6">
-          <ParticipacionPanel actividad={actividad} integrantes={g.integrantes} perfiles={g.perfiles} />
+          <ParticipacionPanel
+            actividad={actividad}
+            integrantes={g.integrantes}
+            perfiles={g.perfiles}
+            cards={cards}
+            pares={pares}
+          />
         </TabsContent>
         <TabsContent value="actividad" className="mt-6">
           <ActividadFeed actividad={actividad} perfiles={g.perfiles} />
@@ -137,15 +171,18 @@ function GrupoPage() {
         puedeEditar={puedeEditar}
         puedeGestionar={g.puedeGestionar}
         perfiles={g.perfiles}
+        integrantes={g.integrantes}
+        esMiembro={g.esMiembro}
+        misEvaluaciones={misEvaluaciones}
       />
     </main>
   );
 }
 
-function Stat({ label, valor, icono }: { label: string; valor: string; icono?: boolean }) {
+function Stat({ label, valor, icono, alerta }: { label: string; valor: string; icono?: boolean; alerta?: boolean }) {
   return (
-    <div className="brut-sm min-w-24 rounded-xl bg-card px-4 py-2">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+    <div className={`brut-sm min-w-24 rounded-xl px-4 py-2 ${alerta ? "bg-destructive text-destructive-foreground" : "bg-card"}`}>
+      <p className={`text-[11px] font-bold uppercase tracking-wider ${alerta ? "" : "text-muted-foreground"}`}>{label}</p>
       <p className="flex items-center gap-1 font-display text-2xl font-extrabold">
         {icono && <Star className="h-4 w-4" />} {valor}
       </p>
@@ -301,6 +338,7 @@ function Integrantes() {
       </div>
 
       <div className="space-y-4">
+        {g.puedeGestionar && g.grupo.aula_id && <Solicitudes refrescar={refrescar} />}
         {g.puedeGestionar && (
           <div className="brut rounded-2xl bg-card p-5">
             <h3 className="text-lg font-bold">Configuración</h3>
@@ -354,6 +392,70 @@ function Integrantes() {
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function Solicitudes({ refrescar }: { refrescar: () => Promise<void> }) {
+  const { grupoId } = Route.useParams();
+  const qc = useQueryClient();
+  const { data } = useQuery(solicitudesGrupoQuery(grupoId));
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const lista = data?.solicitudes ?? [];
+
+  async function resolver(id: string, aceptar: boolean) {
+    setOcupado(id);
+    const { error } = await supabase.rpc("resolver_solicitud", { _solicitud_id: id, _aceptar: aceptar });
+    setOcupado(null);
+    if (error) { toast.error(mensajeError(error)); return; }
+    toast.success(aceptar ? "Solicitud aceptada" : "Solicitud rechazada");
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["solicitudes-grupo", grupoId] }),
+      qc.invalidateQueries({ queryKey: ["solicitudes-aula"] }),
+      refrescar(),
+    ]);
+  }
+
+  return (
+    <div className="brut rounded-2xl bg-card p-5">
+      <h3 className="flex items-center gap-2 text-lg font-bold">
+        <Inbox className="h-5 w-5" /> Solicitudes de ingreso
+        {lista.length > 0 && (
+          <span className="rounded-full border-2 border-ink bg-primary px-2 text-xs font-bold text-primary-foreground">
+            {lista.length}
+          </span>
+        )}
+      </h3>
+      {lista.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">No hay pedidos pendientes.</p>
+      ) : (
+        <ul className="mt-3 divide-y-2 divide-ink/10">
+          {lista.map((s) => {
+            const p = data?.perfiles[s.user_id];
+            return (
+              <li key={s.id} className="flex items-center gap-3 py-2.5">
+                <Avatar id={s.user_id} nombre={p?.nombre} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{p?.nombre ?? "Alumno"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{p?.email}</p>
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  title="Rechazar"
+                  disabled={ocupado === s.id}
+                  onClick={() => resolver(s.id, false)}
+                >
+                  <X />
+                </Button>
+                <Button size="sm" disabled={ocupado === s.id} onClick={() => resolver(s.id, true)}>
+                  <Check /> Aceptar
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
