@@ -2,9 +2,32 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowUpRight, Lock, LogOut, Plus, Star, Trash2, UserMinus, Users } from "lucide-react";
+import {
+  AlarmClock,
+  ArrowUpRight,
+  CheckCircle2,
+  Inbox,
+  LayoutGrid,
+  Lock,
+  LogOut,
+  Plus,
+  Send,
+  Star,
+  Trash2,
+  UserMinus,
+  Users,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { aulaActividadQuery, aulaQuery, mensajeError, ROL_LABEL, type Rol } from "@/lib/gruplab";
+import {
+  aulaActividadQuery,
+  aulaQuery,
+  mensajeError,
+  paresQuery,
+  ROL_LABEL,
+  solicitudesAulaQuery,
+  type Rol,
+} from "@/lib/gruplab";
+import { estadoVencimiento } from "@/lib/vencimiento";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +69,24 @@ function AulaPage() {
   const navigate = useNavigate();
   const [crearAbierto, setCrearAbierto] = useState(false);
   const alumnos = data.miembros.filter((m) => m.rol === "alumno");
+  const { data: solicitudes = [] } = useQuery(solicitudesAulaQuery(aulaId));
+  const [enviando, setEnviando] = useState<string | null>(null);
+
+  async function pedirIngreso(grupoId: string) {
+    setEnviando(grupoId);
+    const { error } = await supabase.rpc("solicitar_ingreso", { _grupo_id: grupoId });
+    setEnviando(null);
+    if (error) { toast.error(mensajeError(error)); return; }
+    toast.success("Solicitud enviada. Te avisamos cuando la acepten.");
+    qc.invalidateQueries({ queryKey: ["solicitudes-aula", aulaId] });
+  }
+
+  async function cancelarPedido(id: string) {
+    const { error } = await supabase.from("solicitudes_grupo").delete().eq("id", id);
+    if (error) { toast.error(mensajeError(error)); return; }
+    toast.success("Solicitud cancelada");
+    qc.invalidateQueries({ queryKey: ["solicitudes-aula", aulaId] });
+  }
 
   async function eliminarAula() {
     if (!confirm(`¿Eliminar "${data.aula.nombre}" con todos sus grupos, tareas y archivos? No se puede deshacer.`)) return;
@@ -97,8 +138,9 @@ function AulaPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="grupos" className="mt-8">
+      <Tabs defaultValue={data.esStaff ? "resumen" : "grupos"} className="mt-8">
         <TabsList className="flex-wrap">
+          {data.esStaff && <TabsTrigger value="resumen">Resumen</TabsTrigger>}
           <TabsTrigger value="grupos">Grupos</TabsTrigger>
           {data.esStaff && <TabsTrigger value="participacion">Participación</TabsTrigger>}
           {data.esStaff && <TabsTrigger value="actividad">Actividad</TabsTrigger>}
@@ -110,7 +152,7 @@ function AulaPage() {
             <div className="brut mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-sun p-5">
               <div>
                 <h3 className="text-lg font-bold">Todavía no estás en un grupo</h3>
-                <p className="text-sm">Creá uno y quedás como admin, o pedile a un compañero que te sume.</p>
+                <p className="text-sm">Creá uno y quedás como admin, o pedí unirte a uno de los grupos de abajo.</p>
               </div>
               <Button variant="ink" onClick={() => setCrearAbierto(true)}>
                 <Plus /> Crear mi grupo
@@ -131,6 +173,9 @@ function AulaPage() {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {data.grupos.map((g) => {
                 const accesible = data.esStaff || data.miGrupoId === g.id;
+                const pendientesGrupo = solicitudes.filter((s) => s.grupo_id === g.id);
+                const miPedido = pendientesGrupo.find((s) => s.user_id === data.uid);
+                const puedePedir = data.rol === "alumno" && !data.miGrupoId;
                 const pct = g.totalCards ? Math.round((g.hechas / g.totalCards) * 100) : 0;
                 const contenido = (
                   <>
@@ -142,9 +187,16 @@ function AulaPage() {
                         <Lock className="h-4 w-4 opacity-40" />
                       )}
                     </div>
-                    {data.miGrupoId === g.id && (
-                      <span className="mt-1 w-fit rounded-full border-2 border-ink bg-mint px-2 text-[11px] font-bold">Tu grupo</span>
-                    )}
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {data.miGrupoId === g.id && (
+                        <span className="w-fit rounded-full border-2 border-ink bg-mint px-2 text-[11px] font-bold">Tu grupo</span>
+                      )}
+                      {(data.esStaff || g.admin_id === data.uid) && pendientesGrupo.length > 0 && (
+                        <span className="flex w-fit items-center gap-1 rounded-full border-2 border-ink bg-primary px-2 text-[11px] font-bold text-primary-foreground">
+                          <Inbox className="h-3 w-3" /> {pendientesGrupo.length} solicitud{pendientesGrupo.length === 1 ? "" : "es"}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-4">
                       <div className="flex justify-between text-xs font-semibold text-muted-foreground">
                         <span>
@@ -182,6 +234,30 @@ function AulaPage() {
                 ) : (
                   <div key={g.id} className="flex flex-col rounded-2xl border-2 border-ink bg-card/70 p-5">
                     {contenido}
+                    {puedePedir && (
+                      <div className="mt-4 border-t-2 border-ink/10 pt-4">
+                        {miPedido ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5 text-sm font-semibold">
+                              <CheckCircle2 className="h-4 w-4 text-mint" /> Solicitud enviada
+                            </span>
+                            <Button size="sm" variant="ghost" onClick={() => cancelarPedido(miPedido.id)}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            disabled={enviando === g.id}
+                            onClick={() => pedirIngreso(g.id)}
+                          >
+                            <Send /> Pedir unirme
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -189,6 +265,11 @@ function AulaPage() {
           )}
         </TabsContent>
 
+        {data.esStaff && (
+          <TabsContent value="resumen" className="mt-6">
+            <ResumenAula />
+          </TabsContent>
+        )}
         {data.esStaff && (
           <TabsContent value="participacion" className="mt-6">
             <ParticipacionAula />
@@ -214,6 +295,7 @@ function ParticipacionAula() {
   const { data } = useSuspenseQuery(aulaQuery(aulaId));
   const ids = data.grupos.map((g) => g.id);
   const { data: actividad = [], isLoading } = useQuery(aulaActividadQuery(aulaId, ids));
+  const { data: pares = [] } = useQuery(paresQuery(ids));
   const enGrupo = new Set(data.grupos.flatMap((g) => g.integrantes));
   const sinGrupo = data.miembros.filter((m) => m.rol === "alumno" && !enGrupo.has(m.user_id));
 
@@ -251,11 +333,131 @@ function ParticipacionAula() {
                 actividad={actividad.filter((a) => a.grupo_id === g.id)}
                 integrantes={g.integrantes}
                 perfiles={data.perfiles}
+                cards={data.cards.filter((c) => c.grupo_id === g.id)}
+                pares={pares.filter((p) => p.grupo_id === g.id)}
               />
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ResumenAula() {
+  const { aulaId } = Route.useParams();
+  const { data } = useSuspenseQuery(aulaQuery(aulaId));
+  const alumnos = data.miembros.filter((m) => m.rol === "alumno").length;
+  const total = data.cards.length;
+  const hechas = data.cards.filter((c) => c.estado === "hecho").length;
+  const avance = total ? Math.round((hechas / total) * 100) : 0;
+  const puntuadas = data.cards.filter((c) => c.puntuacion != null);
+  const promedio = puntuadas.length
+    ? puntuadas.reduce((s, c) => s + (c.puntuacion ?? 0), 0) / puntuadas.length
+    : null;
+  const esVencida = (c: (typeof data.cards)[number]) => estadoVencimiento(c.fecha_limite, c.estado) === "vencida";
+  const vencidas = data.cards.filter(esVencida).length;
+
+  const filas = data.grupos
+    .map((g) => {
+      const cs = data.cards.filter((c) => c.grupo_id === g.id);
+      return {
+        ...g,
+        avance: g.totalCards ? Math.round((g.hechas / g.totalCards) * 100) : 0,
+        vencidas: cs.filter(esVencida).length,
+        porEstado: {
+          backlog: cs.filter((c) => c.estado === "backlog").length,
+          progreso: cs.filter((c) => c.estado === "progreso").length,
+          revision: cs.filter((c) => c.estado === "revision").length,
+          hecho: cs.filter((c) => c.estado === "hecho").length,
+        },
+      };
+    })
+    .sort((a, b) => b.avance - a.avance);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Kpi label="Grupos activos" valor={String(data.grupos.length)} icon={LayoutGrid} />
+        <Kpi label="Alumnos inscriptos" valor={String(alumnos)} icon={Users} />
+        <Kpi label="Avance global" valor={`${avance}%`} pie={`${hechas} de ${total} tareas hechas`} icon={CheckCircle2} />
+        <Kpi label="Promedio de notas" valor={promedio != null ? `${promedio.toFixed(1)}/10` : "—"} icon={Star} />
+        <Kpi label="Tareas vencidas" valor={String(vencidas)} icon={AlarmClock} alerta={vencidas > 0} />
+      </div>
+
+      <div className="brut rounded-2xl bg-card p-5">
+        <h3 className="text-lg font-bold">Avance por grupo</h3>
+        {filas.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">Todavía no hay grupos en esta aula.</p>
+        ) : (
+          <ul className="mt-4 space-y-5">
+            {filas.map((g) => (
+              <li key={g.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link to="/grupos/$grupoId" params={{ grupoId: g.id }} className="font-bold hover:underline">
+                      {g.nombre}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      {g.integrantes.length} integrante{g.integrantes.length === 1 ? "" : "s"}
+                    </span>
+                    {g.vencidas > 0 && (
+                      <span className="flex items-center gap-1 rounded-md border-2 border-ink bg-destructive px-1.5 text-[11px] font-bold text-destructive-foreground">
+                        <AlarmClock className="h-3 w-3" /> {g.vencidas} vencida{g.vencidas === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    {g.promedio != null && (
+                      <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-sun px-2 py-0.5 text-xs font-bold">
+                        <Star className="h-3 w-3" /> {g.promedio.toFixed(1)}
+                      </span>
+                    )}
+                    <span className="font-mono font-bold">{g.avance}%</span>
+                  </div>
+                </div>
+                <div className="mt-2 flex h-4 overflow-hidden rounded-full border-2 border-ink bg-muted">
+                  {g.totalCards > 0 && (
+                    <>
+                      <span className="bg-estado-hecho" style={{ width: `${(g.porEstado.hecho / g.totalCards) * 100}%` }} />
+                      <span className="bg-estado-revision" style={{ width: `${(g.porEstado.revision / g.totalCards) * 100}%` }} />
+                      <span className="bg-estado-progreso" style={{ width: `${(g.porEstado.progreso / g.totalCards) * 100}%` }} />
+                    </>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {g.porEstado.backlog} en backlog · {g.porEstado.progreso} en progreso · {g.porEstado.revision} en revisión ·{" "}
+                  {g.porEstado.hecho} hechas
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Kpi({
+  label,
+  valor,
+  pie,
+  icon: Icon,
+  alerta,
+}: {
+  label: string;
+  valor: string;
+  pie?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  alerta?: boolean;
+}) {
+  return (
+    <div className={`brut rounded-2xl p-4 ${alerta ? "bg-destructive text-destructive-foreground" : "bg-card"}`}>
+      <p className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${alerta ? "" : "text-muted-foreground"}`}>
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </p>
+      <p className="mt-1 font-display text-3xl font-extrabold">{valor}</p>
+      {pie && <p className={`text-xs ${alerta ? "" : "text-muted-foreground"}`}>{pie}</p>}
     </div>
   );
 }
