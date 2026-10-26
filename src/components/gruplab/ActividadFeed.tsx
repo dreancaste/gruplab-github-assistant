@@ -14,6 +14,8 @@ const COLOR_ACCION: Record<string, string> = {
   adjuntar: "bg-mint",
   sumar_integrante: "bg-mint",
   quitar_integrante: "bg-muted",
+  revisar: "bg-mint",
+  reabrir: "bg-destructive",
 };
 
 function etiquetaDia(iso: string) {
