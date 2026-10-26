@@ -40,10 +40,14 @@ describe("calcularParticipacion", () => {
     expect(de(res, "b").esfuerzo).toBeCloseTo(0);
   });
 
-  it("con solo esfuerzo disponible, la participación es igual al esfuerzo", () => {
+  it("sin fechas ni evaluaciones, el peso se reparte entre esfuerzo y calidad", () => {
     const res = calcularParticipacion(["a", "b"], [hecha("1", ["a"], { peso_esfuerzo: 3 }), hecha("2", ["b"])], []);
-    expect(de(res, "a").participacion).toBeCloseTo(75);
-    expect(formulaVigente(res)).toMatchObject({ esfuerzo: 100, puntualidad: 0, pares: 0 });
+    // esfuerzo 75/25 (peso 50), calidad 50/50 (peso 15) → sobre 65
+    expect(de(res, "a").participacion).toBeCloseTo((75 * 50 + 50 * 15) / 65);
+    const f = formulaVigente(res)!;
+    expect(f.puntualidad).toBe(0);
+    expect(f.pares).toBe(0);
+    expect(f.esfuerzo).toBeCloseTo((50 / 65) * 100);
   });
 
   it("pondera esfuerzo 50, puntualidad 20, calidad/colaboración 15 y pares 15", () => {
