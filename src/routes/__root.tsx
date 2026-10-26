@@ -46,7 +46,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     <div className="dot-grid flex min-h-screen items-center justify-center bg-background px-4">
       <div className="brut max-w-md rounded-2xl bg-card p-10 text-center">
         <h1 className="text-2xl font-bold">No pudimos cargar esta página</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{error instanceof Error ? error.message : String(error)}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button
             onClick={() => {

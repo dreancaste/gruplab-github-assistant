@@ -691,7 +691,7 @@ function Adjuntos({
                   onClick={() => setVista({ url: urls[a.path]!, nombre: a.nombre })}
                   className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-ink"
                 >
-                  <img src={urls[a.path]} alt={a.nombre} className="h-full w-full object-cover" loading="lazy" />
+                  <img src={urls[a.path] ?? undefined} alt={a.nombre} className="h-full w-full object-cover" loading="lazy" />
                 </button>
               ) : (
                 <FileText className="h-5 w-5 shrink-0 text-secondary" />

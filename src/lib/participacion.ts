@@ -154,13 +154,13 @@ export function calcularParticipacion(
     PESOS_PARTICIPACION.calidadColaboracion,
     PESOS_PARTICIPACION.pares,
   ];
-  const pesoTotal = factores.reduce((s, f, i) => s + (f ? pesos[i] : 0), 0);
+  const pesoTotal = factores.reduce((s, f, i) => s + (f ? pesos[i]! : 0), 0);
   const umbral = miembros.length ? 100 / miembros.length / 2 : 0;
 
   return miembros
     .map((userId) => {
       const participacion = pesoTotal
-        ? factores.reduce((s, f, i) => s + ((f?.get(userId) ?? 0) * pesos[i]) / pesoTotal, 0)
+        ? factores.reduce((s, f, i) => s + ((f?.get(userId) ?? 0) * pesos[i]!) / pesoTotal, 0)
         : null;
       return {
         userId,
@@ -189,9 +189,9 @@ export function formulaVigente(filas: Participacion[]): FormulaVigente | null {
   const suma = f.reduce((s, n) => s + n, 0);
   if (!suma) return null;
   return {
-    esfuerzo: (f[0] / suma) * 100,
-    puntualidad: (f[1] / suma) * 100,
-    calidadColaboracion: (f[2] / suma) * 100,
-    pares: (f[3] / suma) * 100,
+    esfuerzo: (f[0]! / suma) * 100,
+    puntualidad: (f[1]! / suma) * 100,
+    calidadColaboracion: (f[2]! / suma) * 100,
+    pares: (f[3]! / suma) * 100,
   };
 }
