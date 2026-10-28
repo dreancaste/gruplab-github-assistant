@@ -295,7 +295,7 @@ function CardItem({
           {card.asignados.length > 0 ? (
             <AvatarStack ids={card.asignados} perfiles={perfiles as Record<string, { nombre: string } | undefined>} max={3} />
           ) : (
-            <span className="text-[11px] text-muted-foreground">Sin asignar</span>
+            <span className="text-[11px] text-muted-foreground">Sin responsable</span>
           )}
         </span>
       </div>
