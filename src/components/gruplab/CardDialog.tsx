@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   CalendarDays,
+  Check,
   CheckCheck,
   Download,
   FileText,
@@ -329,10 +330,26 @@ function Planificacion({
   const congelada = !esStaff && card.estado !== "backlog" && card.asignados.length > 0;
   const puedePlanificar = puedeEditar && !congelada && !guardando;
   const venc = estadoVencimiento(card.fecha_limite, card.estado);
+  // Los responsables se eligen primero y se guardan juntos: si la tarea ya arrancó,
+  // guardar de a uno congelaría la asignación después del primer clic.
+  const [borrador, setBorrador] = useState<string[]>(card.asignados);
+  const asignadosKey = card.asignados.join(",");
+  useEffect(() => {
+    setBorrador(card.asignados);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asignadosKey]);
+  const cambioAsignados =
+    borrador.length !== card.asignados.length || borrador.some((id) => !card.asignados.includes(id));
+  const seCongela = !esStaff && card.estado !== "backlog";
 
   function alternar(id: string) {
-    const asignados = card.asignados.includes(id) ? card.asignados.filter((x) => x !== id) : [...card.asignados, id];
-    actualizar({ asignados });
+    setBorrador((b) => (b.includes(id) ? b.filter((x) => x !== id) : [...b, id]));
+  }
+
+  async function guardarAsignados() {
+    if (seCongela && borrador.length > 0 &&
+      !confirm("La tarea ya arrancó: después de guardar no vas a poder cambiar los responsables. ¿Guardar?")) return;
+    await actualizar({ asignados: borrador }, "Responsables guardados");
   }
 
   return (
@@ -383,34 +400,52 @@ function Planificacion({
       </div>
       <div className="grid gap-1.5 sm:col-span-2">
         <Label className="flex items-center gap-1.5">
-          <Users2 className="h-4 w-4" /> Asignados
+          <Users2 className="h-4 w-4" /> Responsables
         </Label>
         {integrantes.length === 0 ? (
           <p className="text-sm text-muted-foreground">El grupo todavía no tiene integrantes.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {integrantes.map((id) => {
-              const activo = card.asignados.includes(id);
-              return (
-                <button
-                  key={id}
-                  disabled={!puedePlanificar}
-                  onClick={() => alternar(id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-full border-2 border-ink py-0.5 pl-0.5 pr-3 text-sm font-semibold transition disabled:cursor-not-allowed",
-                    activo ? "bg-secondary text-secondary-foreground" : "bg-card hover:bg-muted disabled:opacity-60",
-                  )}
-                >
-                  <Avatar id={id} nombre={perfiles[id]?.nombre} size="sm" />
-                  {perfiles[id]?.nombre ?? "Integrante"}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            {puedePlanificar && (
+              <p className="text-xs text-muted-foreground">Tocá una o más personas y después guardá.</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {integrantes.map((id) => {
+                const activo = borrador.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={activo}
+                    disabled={!puedePlanificar}
+                    onClick={() => alternar(id)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full border-2 border-ink py-0.5 pl-0.5 pr-3 text-sm font-semibold transition disabled:cursor-not-allowed",
+                      activo ? "bg-secondary text-secondary-foreground" : "bg-card hover:bg-muted disabled:opacity-60",
+                    )}
+                  >
+                    <Avatar id={id} nombre={perfiles[id]?.nombre} size="sm" />
+                    {perfiles[id]?.nombre ?? "Integrante"}
+                    {activo && <Check className="h-3.5 w-3.5" />}
+                  </button>
+                );
+              })}
+            </div>
+            {puedePlanificar && cambioAsignados && (
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setBorrador(card.asignados)}>
+                  Descartar
+                </Button>
+                <Button type="button" size="sm" disabled={guardando} onClick={guardarAsignados}>
+                  Guardar responsables
+                </Button>
+              </div>
+            )}
+          </>
         )}
         {congelada && (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3" /> El esfuerzo y la asignación se congelan al iniciar la tarea para proteger la
+            <Lock className="h-3 w-3" /> El esfuerzo y los responsables se congelan al iniciar la tarea para proteger la
             métrica de participación.
           </p>
         )}
