@@ -329,10 +329,26 @@ function Planificacion({
   const congelada = !esStaff && card.estado !== "backlog" && card.asignados.length > 0;
   const puedePlanificar = puedeEditar && !congelada && !guardando;
   const venc = estadoVencimiento(card.fecha_limite, card.estado);
+  // Los responsables se eligen primero y se guardan juntos: si la tarea ya arrancó,
+  // guardar de a uno congelaría la asignación después del primer clic.
+  const [borrador, setBorrador] = useState<string[]>(card.asignados);
+  const asignadosKey = card.asignados.join(",");
+  useEffect(() => {
+    setBorrador(card.asignados);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asignadosKey]);
+  const cambioAsignados =
+    borrador.length !== card.asignados.length || borrador.some((id) => !card.asignados.includes(id));
+  const seCongela = !esStaff && card.estado !== "backlog";
 
   function alternar(id: string) {
-    const asignados = card.asignados.includes(id) ? card.asignados.filter((x) => x !== id) : [...card.asignados, id];
-    actualizar({ asignados });
+    setBorrador((b) => (b.includes(id) ? b.filter((x) => x !== id) : [...b, id]));
+  }
+
+  async function guardarAsignados() {
+    if (seCongela && borrador.length > 0 &&
+      !confirm("La tarea ya arrancó: después de guardar no vas a poder cambiar los responsables. ¿Guardar?")) return;
+    await actualizar({ asignados: borrador }, "Responsables guardados");
   }
 
   return (
