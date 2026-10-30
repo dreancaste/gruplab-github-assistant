@@ -16,7 +16,7 @@
 - The activity log is written only by database triggers on cards, card_adjuntos and grupo_miembros (no client insert policy), so participation numbers cannot be faked from the browser.
 - Grading fields (puntuacion, comentario_profesor) are guarded by a BEFORE trigger that only lets aula staff change them; keep UI checks as convenience only.
 - Participation math lives in `src/lib/participacion.ts` (and due-date alerts in `src/lib/vencimiento.ts`) as pure functions with tests; change them there, not inside components.
-- Task workflow rules (review before Hecho, frozen effort/assignees, completion/review timestamps) are enforced in the `cards_reglas` BEFORE trigger; UI pre-checks only give friendlier messages.
+- Task workflow rules (review before Hecho, solo-board exceptions, auto-review, default assignees, frozen effort/assignees, timestamps) are enforced in the `cards_reglas` BEFORE trigger; `src/lib/reglasTareas.ts` mirrors them (with tests) only so the UI can explain refusals before trying.
 - Peer evaluations are written only via the `evaluar_par` RPC and read by groups only as anonymous averages through `resumen_pares`; raw rows are visible to the evaluator and aula staff only.
 - Group join requests (`solicitudes_grupo`) are created/resolved only through `solicitar_ingreso` / `resolver_solicitud` RPCs.
 - Attachments live in the private `adjuntos` bucket under `{grupo_id}/{card_id}/...`; storage policies key off the first path segment, so keep that layout.
