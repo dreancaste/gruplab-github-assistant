@@ -36,13 +36,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar } from "./Avatar";
-import { motivoNoCompletar } from "./KanbanBoard";
+import {
+  esTableroIndividual,
+  motivoNoCompletar,
+  puedeRevisar,
+  seAutoRevisa,
+  todoElGrupoAsignado,
+  type ContextoTablero,
+} from "@/lib/reglasTareas";
 import { estadoVencimiento } from "@/lib/vencimiento";
 import { cn } from "@/lib/utils";
 
 type Extra = {
   integrantes: string[];
   esMiembro: boolean;
+  esIndependiente: boolean;
   misEvaluaciones: EvaluacionPar[];
 };
 
@@ -99,6 +107,7 @@ function Contenido({
   perfiles,
   integrantes,
   esMiembro,
+  esIndependiente,
   misEvaluaciones,
 }: {
   card: Card;
@@ -117,6 +126,8 @@ function Contenido({
   const [comentario, setComentario] = useState(card.comentario_profesor ?? "");
   const [guardando, setGuardando] = useState(false);
   const cambios = titulo !== card.titulo || descripcion !== (card.descripcion ?? "");
+  const contexto: ContextoTablero = { esIndependiente, integrantes, uid, esStaff };
+
 
   function refrescar() {
     qc.invalidateQueries({ queryKey: ["cards", grupoId] });
@@ -171,11 +182,13 @@ function Contenido({
             disabled={!puedeEditar || guardando}
             onClick={() => {
               if (e.id === card.estado) return;
+              let ok: string | undefined;
               if (e.id === "hecho") {
-                const motivo = motivoNoCompletar(card);
+                const motivo = motivoNoCompletar(card, contexto);
                 if (motivo) { toast.error(motivo); return; }
+                if (seAutoRevisa(card, contexto)) ok = "Tarea completada. Quedó registrada tu revisión.";
               }
-              actualizar({ estado: e.id as Estado, orden: Date.now() });
+              actualizar({ estado: e.id as Estado, orden: Date.now() }, ok);
             }}
             className={cn(
               "flex items-center gap-2 rounded-full border-2 border-ink px-3 py-1 text-xs font-bold transition",
@@ -232,7 +245,7 @@ function Contenido({
         actualizar={actualizar}
       />
 
-      <Revision card={card} uid={uid} esMiembro={esMiembro} perfiles={perfiles} guardando={guardando} actualizar={actualizar} />
+      <Revision card={card} uid={uid} contexto={contexto} perfiles={perfiles} guardando={guardando} actualizar={actualizar} />
 
       {card.estado === "hecho" && esMiembro && (
         <EvaluacionPares card={card} uid={uid} integrantes={integrantes} perfiles={perfiles} misEvaluaciones={misEvaluaciones} />
@@ -457,20 +470,22 @@ function Planificacion({
 function Revision({
   card,
   uid,
-  esMiembro,
+  contexto,
   perfiles,
   guardando,
   actualizar,
 }: {
   card: Card;
   uid: string;
-  esMiembro: boolean;
+  contexto: ContextoTablero;
   perfiles: Record<string, Perfil | undefined>;
   guardando: boolean;
   actualizar: Actualizar;
 }) {
   if (card.estado !== "revision") return null;
-  const puedeRevisar = esMiembro && !card.asignados.includes(uid);
+  const individual = esTableroIndividual(contexto);
+  const habilitado = puedeRevisar(card, contexto);
+  const todos = todoElGrupoAsignado(card, contexto.integrantes);
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-ink bg-sun/25 p-4">
       <div className="min-w-0">
@@ -479,17 +494,24 @@ function Revision({
         </h3>
         {card.revisada_por ? (
           <p className="mt-1 text-sm">
-            Revisada por <strong>{perfiles[card.revisada_por]?.nombre ?? "un integrante"}</strong>
+            Revisada por{" "}
+            <strong>{perfiles[card.revisada_por]?.nombre ?? (contexto.integrantes.includes(card.revisada_por) ? "un integrante" : "el docente")}</strong>
             {card.revisada_en && ` · ${format(new Date(card.revisada_en), "d MMM HH:mm", { locale: es })}`}. Ya se puede
             pasar a Hecho.
           </p>
+        ) : individual ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            En un tablero individual no hace falta revisión: podés pasarla a Hecho directamente.
+          </p>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
-            Otra persona del grupo, que no esté asignada, tiene que revisarla antes de pasarla a Hecho.
+            {todos
+              ? "Todo el grupo está asignado, así que cualquier integrante (o el docente) puede revisarla."
+              : "Otra persona del grupo que no esté asignada, o el docente, tiene que revisarla antes de pasarla a Hecho."}
           </p>
         )}
       </div>
-      {!card.revisada_por && puedeRevisar && (
+      {!card.revisada_por && habilitado && (
         <Button size="sm" variant="ink" disabled={guardando} onClick={() => actualizar({ revisada_por: uid }, "Revisión registrada")}>
           <CheckCheck /> Marcar como revisada
         </Button>
