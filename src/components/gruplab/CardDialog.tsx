@@ -634,7 +634,7 @@ function EvaluacionPares({
           ))}
           <div className="flex justify-end">
             <Button size="sm" disabled={enviando || !actual} onClick={enviar}>
-              {enviando && <Loader2 className="animate-spin" />} Enviar evaluación
+              {enviando && <Loader2 className="animate-spin" />} {previa(actual) ? "Actualizar evaluación" : "Enviar evaluación"}
             </Button>
           </div>
         </div>
