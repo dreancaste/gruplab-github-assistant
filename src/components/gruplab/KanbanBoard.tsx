@@ -18,17 +18,10 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { ESTADOS, mensajeError, type Card, type Estado, type Perfil } from "@/lib/gruplab";
+import { motivoNoCompletar, seAutoRevisa, type ContextoTablero } from "@/lib/reglasTareas";
 import { estadoVencimiento } from "@/lib/vencimiento";
 import { cn } from "@/lib/utils";
 import { AvatarStack } from "./Avatar";
-
-/** Devuelve un mensaje si la tarea todavía no puede pasar a Hecho. */
-export function motivoNoCompletar(card: Card): string | null {
-  if (card.asignados.length === 0) return "Asigná al menos una persona antes de completar la tarea.";
-  if (card.estado !== "revision" || !card.revisada_por || card.asignados.includes(card.revisada_por))
-    return "Antes de completar, la tarea tiene que pasar por Revisión y otra persona del grupo (no asignada) tiene que revisarla.";
-  return null;
-}
 
 export function KanbanBoard({
   grupoId,
@@ -37,6 +30,7 @@ export function KanbanBoard({
   puedeEditar,
   onAbrir,
   pendientesEval,
+  contexto,
 }: {
   grupoId: string;
   cards: Card[];
@@ -44,6 +38,7 @@ export function KanbanBoard({
   puedeEditar: boolean;
   onAbrir: (card: Card) => void;
   pendientesEval: Set<string>;
+  contexto: ContextoTablero;
 }) {
   const qc = useQueryClient();
   const [arrastrando, setArrastrando] = useState<Card | null>(null);
@@ -55,9 +50,11 @@ export function KanbanBoard({
   async function mover(cardId: string, estado: Estado) {
     const card = cards.find((c) => c.id === cardId);
     if (!card || card.estado === estado) return;
+    let autoRevision = false;
     if (estado === "hecho") {
-      const motivo = motivoNoCompletar(card);
+      const motivo = motivoNoCompletar(card, contexto);
       if (motivo) { toast.error(motivo); return; }
+      autoRevision = seAutoRevisa(card, contexto);
     }
     const orden = Date.now();
     qc.setQueryData<Card[]>(["cards", grupoId], (old) =>
@@ -66,8 +63,10 @@ export function KanbanBoard({
     const { error } = await supabase.from("cards").update({ estado, orden }).eq("id", cardId);
     if (error) {
       toast.error(mensajeError(error));
-      qc.invalidateQueries({ queryKey: ["cards", grupoId] });
+    } else if (autoRevision) {
+      toast.success("Tarea completada. Quedó registrada tu revisión.");
     }
+    qc.invalidateQueries({ queryKey: ["cards", grupoId] });
     qc.invalidateQueries({ queryKey: ["actividad", grupoId] });
   }
 
