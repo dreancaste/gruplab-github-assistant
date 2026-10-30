@@ -540,18 +540,31 @@ function EvaluacionPares({
   misEvaluaciones: EvaluacionPar[];
 }) {
   const qc = useQueryClient();
-  const pendientes = integrantes.filter(
-    (id) => id !== uid && !misEvaluaciones.some((e) => e.card_id === card.id && e.evaluado_id === id),
-  );
-  const [evaluado, setEvaluado] = useState(pendientes[0] ?? "");
-  const [notas, setNotas] = useState({ coordinacion: 5, comunicacion: 5, responsabilidad: 5 });
+  const otros = integrantes.filter((id) => id !== uid);
+  const previa = (id: string) => misEvaluaciones.find((e) => e.card_id === card.id && e.evaluado_id === id);
+  const pendientes = otros.filter((id) => !previa(id));
+  const notasDe = (id: string) => {
+    const p = previa(id);
+    return p
+      ? { coordinacion: p.coordinacion, comunicacion: p.comunicacion, responsabilidad: p.responsabilidad }
+      : { coordinacion: 5, comunicacion: 5, responsabilidad: 5 };
+  };
+  const inicial = pendientes[0] ?? otros[0] ?? "";
+  const [evaluado, setEvaluado] = useState(inicial);
+  const [notas, setNotas] = useState(() => notasDe(inicial));
   const [enviando, setEnviando] = useState(false);
-  const actual = pendientes.includes(evaluado) ? evaluado : (pendientes[0] ?? "");
+  const actual = otros.includes(evaluado) ? evaluado : inicial;
 
-  if (integrantes.filter((id) => id !== uid).length === 0) return null;
+  if (otros.length === 0) return null;
+
+  function elegir(id: string) {
+    setEvaluado(id);
+    setNotas(notasDe(id));
+  }
 
   async function enviar() {
     if (!actual) return;
+    const yaEvaluado = !!previa(actual);
     setEnviando(true);
     const { error } = await supabase.rpc("evaluar_par", {
       _card_id: card.id,
@@ -562,8 +575,10 @@ function EvaluacionPares({
     });
     setEnviando(false);
     if (error) { toast.error(mensajeError(error)); return; }
-    toast.success(`Evaluaste a ${perfiles[actual]?.nombre ?? "tu compañero"}`);
-    setNotas({ coordinacion: 5, comunicacion: 5, responsabilidad: 5 });
+    const nombre = perfiles[actual]?.nombre ?? "tu compañero";
+    toast.success(yaEvaluado ? `Actualizaste tu evaluación de ${nombre}` : `Evaluaste a ${nombre}`);
+    const siguiente = pendientes.find((id) => id !== actual);
+    if (siguiente) elegir(siguiente);
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["mis-evaluaciones", card.grupo_id] }),
       qc.invalidateQueries({ queryKey: ["pares"] }),
@@ -575,18 +590,18 @@ function EvaluacionPares({
       <h3 className="flex items-center gap-2 font-display text-base font-bold">
         <Users2 className="h-4 w-4" /> Evaluación entre pares
       </h3>
-      {pendientes.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">Ya evaluaste a todo el equipo en esta tarea. ¡Gracias!</p>
-      ) : (
+      {(
         <div className="mt-3 grid gap-3">
           <p className="text-sm text-muted-foreground">
-            Puntuá del 1 al 5 cómo trabajó cada compañero en esta tarea. Es anónimo: el grupo solo ve el promedio.
+            {pendientes.length === 0
+              ? "Ya evaluaste a todo el equipo en esta tarea. Si querés, podés cambiar tu evaluación."
+              : "Puntuá del 1 al 5 cómo trabajó cada compañero en esta tarea. Es anónimo: el grupo solo ve el promedio."}
           </p>
           <div className="flex flex-wrap gap-2">
-            {pendientes.map((id) => (
+            {otros.map((id) => (
               <button
                 key={id}
-                onClick={() => setEvaluado(id)}
+                onClick={() => elegir(id)}
                 className={cn(
                   "flex items-center gap-2 rounded-full border-2 border-ink py-0.5 pl-0.5 pr-3 text-sm font-semibold",
                   actual === id ? "bg-ink text-paper" : "bg-card hover:bg-muted",
@@ -594,6 +609,7 @@ function EvaluacionPares({
               >
                 <Avatar id={id} nombre={perfiles[id]?.nombre} size="sm" />
                 {perfiles[id]?.nombre ?? "Integrante"}
+                {previa(id) && <Check className="h-3.5 w-3.5" />}
               </button>
             ))}
           </div>
