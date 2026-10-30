@@ -325,9 +325,21 @@ export const ACCION_TEXTO: Record<string, string> = {
   adjuntar: "adjuntó",
   sumar_integrante: "sumó a",
   quitar_integrante: "quitó a",
-  revisar: "revisó",
+  revisar: "revisó y aprobó",
   reabrir: "reabrió",
+  crear_grupo: "creó el grupo",
+  editar_grupo: "cambió el nombre del grupo:",
 };
+
+/** Texto de la acción, más específico cuando una tarea cambia de columna. */
+export function textoAccion(accion: string, detalle: string | null): string {
+  if (accion === "mover" && detalle) {
+    if (detalle.endsWith("→ Hecho")) return "completó";
+    if (detalle.endsWith("→ Revisión")) return "envió a revisión";
+    if (detalle.endsWith("→ En progreso")) return "empezó";
+  }
+  return ACCION_TEXTO[accion] ?? accion;
+}
 
 export function formatoTamano(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

@@ -1,7 +1,7 @@
 import { format, isToday, isYesterday } from "date-fns";
 import { es } from "date-fns/locale";
 import { History } from "lucide-react";
-import { ACCION_TEXTO, type Actividad, type Perfil } from "@/lib/gruplab";
+import { textoAccion, type Actividad, type Perfil } from "@/lib/gruplab";
 import { Avatar } from "./Avatar";
 import { EstadoVacio } from "./EstadoVacio";
 
@@ -16,6 +16,8 @@ const COLOR_ACCION: Record<string, string> = {
   quitar_integrante: "bg-muted",
   revisar: "bg-mint",
   reabrir: "bg-destructive",
+  crear_grupo: "bg-primary",
+  editar_grupo: "bg-muted",
 };
 
 function etiquetaDia(iso: string) {
@@ -63,7 +65,7 @@ export function ActividadFeed({
                   <Avatar id={a.user_id} nombre={a.user_id ? perfiles[a.user_id]?.nombre : "Sistema"} size="sm" />
                   <p className="min-w-0 flex-1 text-sm leading-snug">
                     <span className="font-semibold">{a.user_id ? (perfiles[a.user_id]?.nombre ?? "Alguien") : "Sistema"}</span>{" "}
-                    <span className="text-muted-foreground">{ACCION_TEXTO[a.accion] ?? a.accion}</span>{" "}
+                    <span className="text-muted-foreground">{textoAccion(a.accion, a.detalle)}</span>{" "}
                     {a.detalle && <span className="font-medium">{a.detalle}</span>}
                     {nombresGrupo?.[a.grupo_id] && (
                       <span className="ml-1.5 rounded-md border border-ink/30 px-1.5 py-0.5 text-[11px] font-semibold">

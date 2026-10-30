@@ -143,6 +143,7 @@ function GrupoPage() {
             puedeEditar={puedeEditar}
             onAbrir={(c: Card) => setAbiertaId(c.id)}
             pendientesEval={pendientesEval}
+            contexto={{ esIndependiente: g.grupo.es_independiente, integrantes: g.integrantes, uid: g.uid, esStaff: g.esStaff }}
           />
         </TabsContent>
         <TabsContent value="participacion" className="mt-6">
@@ -173,6 +174,7 @@ function GrupoPage() {
         perfiles={g.perfiles}
         integrantes={g.integrantes}
         esMiembro={g.esMiembro}
+        esIndependiente={g.grupo.es_independiente}
         misEvaluaciones={misEvaluaciones}
       />
     </main>

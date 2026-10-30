@@ -285,7 +285,16 @@ function AulaPage() {
         </TabsContent>
       </Tabs>
 
-      <CrearGrupoDialog open={crearAbierto} onClose={() => setCrearAbierto(false)} aulaId={aulaId} esStaff={data.esStaff} />
+      <CrearGrupoDialog
+        open={crearAbierto}
+        onClose={() => setCrearAbierto(false)}
+        aulaId={aulaId}
+        esStaff={data.esStaff}
+        perfiles={data.perfiles}
+        alumnosLibres={data.miembros
+          .filter((m) => m.rol === "alumno" && !data.grupos.some((g) => g.integrantes.includes(m.user_id)))
+          .map((m) => m.user_id)}
+      />
     </main>
   );
 }
@@ -569,26 +578,37 @@ function CrearGrupoDialog({
   onClose,
   aulaId,
   esStaff,
+  alumnosLibres,
+  perfiles,
 }: {
   open: boolean;
   onClose: () => void;
   aulaId: string;
   esStaff: boolean;
+  alumnosLibres: string[];
+  perfiles: Record<string, { nombre: string } | undefined>;
 }) {
   const [nombre, setNombre] = useState("");
+  const [elegidos, setElegidos] = useState<string[]>([]);
   const [cargando, setCargando] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
 
   async function crear(e: React.FormEvent) {
     e.preventDefault();
+    if (cargando) return;
+    if (!nombre.trim()) { toast.error("Ingresá un nombre para el grupo."); return; }
     setCargando(true);
-    const { data, error } = await supabase.rpc("crear_grupo", { _aula_id: aulaId, _nombre: nombre });
+    const { data, error } =
+      esStaff && elegidos.length > 0
+        ? await supabase.rpc("crear_grupo_con_integrantes", { _aula_id: aulaId, _nombre: nombre, _integrantes: elegidos })
+        : await supabase.rpc("crear_grupo", { _aula_id: aulaId, _nombre: nombre });
     setCargando(false);
     if (error) { toast.error(mensajeError(error)); return; }
     await qc.invalidateQueries({ queryKey: ["aula", aulaId] });
     await qc.invalidateQueries({ queryKey: ["espacios"] });
     setNombre("");
+    setElegidos([]);
     onClose();
     toast.success("Grupo creado");
     navigate({ to: "/grupos/$grupoId", params: { grupoId: data as string } });
@@ -602,14 +622,40 @@ function CrearGrupoDialog({
             <DialogTitle>Nuevo grupo</DialogTitle>
             <DialogDescription>
               {esStaff
-                ? "El primer alumno que sumes queda como admin del grupo."
+                ? "Elegí los alumnos ahora o sumalos después. El primero que elijas queda como admin del grupo."
                 : "Vas a quedar como admin y podés sumar a tus compañeros."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
             <Label htmlFor="g-nombre">Nombre del grupo</Label>
-            <Input id="g-nombre" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Los Prototipos" />
+            <Input id="g-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Los Prototipos" />
           </div>
+          {esStaff && (
+            <div className="grid gap-1.5">
+              <Label>Integrantes</Label>
+              {alumnosLibres.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay alumnos sin grupo en esta aula.</p>
+              ) : (
+                <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                  {alumnosLibres.map((id) => {
+                    const activo = elegidos.includes(id);
+                    return (
+                      <button
+                        type="button"
+                        key={id}
+                        aria-pressed={activo}
+                        onClick={() => setElegidos((v) => (activo ? v.filter((x) => x !== id) : [...v, id]))}
+                        className={`flex items-center gap-2 rounded-full border-2 border-ink py-0.5 pl-0.5 pr-3 text-sm font-semibold ${activo ? "bg-ink text-paper" : "bg-card hover:bg-muted"}`}
+                      >
+                        <Avatar id={id} nombre={perfiles[id]?.nombre} size="sm" />
+                        {perfiles[id]?.nombre ?? "Alumno"}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancelar
