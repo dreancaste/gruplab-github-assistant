@@ -454,6 +454,10 @@ export type Database = {
         Args: { _aula_id: string; _nombre: string }
         Returns: string
       }
+      crear_grupo_con_integrantes: {
+        Args: { _aula_id: string; _integrantes: string[]; _nombre: string }
+        Returns: string
+      }
       crear_tablero: { Args: { _nombre: string }; Returns: string }
       es_miembro_aula: {
         Args: { _aula: string; _user: string }
