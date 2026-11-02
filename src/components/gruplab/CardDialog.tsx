@@ -12,9 +12,11 @@ import {
   Loader2,
   Lock,
   Paperclip,
+  Plus,
   Star,
   Trash2,
   Upload,
+  UserPlus,
   Users2,
   Weight,
 } from "lucide-react";
@@ -52,6 +54,8 @@ type Extra = {
   esMiembro: boolean;
   esIndependiente: boolean;
   misEvaluaciones: EvaluacionPar[];
+  /** Abrir con la sección de responsables destacada (p. ej. al intentar completar sin responsables). */
+  resaltarAlAbrir?: boolean;
 };
 
 export function CardDialog({
@@ -109,6 +113,7 @@ function Contenido({
   esMiembro,
   esIndependiente,
   misEvaluaciones,
+  resaltarAlAbrir,
 }: {
   card: Card;
   onClose: () => void;
@@ -125,6 +130,7 @@ function Contenido({
   const [puntuacion, setPuntuacion] = useState<number | null>(card.puntuacion);
   const [comentario, setComentario] = useState(card.comentario_profesor ?? "");
   const [guardando, setGuardando] = useState(false);
+  const [resaltarResponsables, setResaltarResponsables] = useState(resaltarAlAbrir ? 1 : 0);
   const cambios = titulo !== card.titulo || descripcion !== (card.descripcion ?? "");
   const contexto: ContextoTablero = { esIndependiente, integrantes, uid, esStaff };
 
@@ -185,7 +191,11 @@ function Contenido({
               let ok: string | undefined;
               if (e.id === "hecho") {
                 const motivo = motivoNoCompletar(card, contexto);
-                if (motivo) { toast.error(motivo); return; }
+                if (motivo) {
+                  toast.error(motivo);
+                  if (card.asignados.length === 0) setResaltarResponsables((n) => n + 1);
+                  return;
+                }
                 if (seAutoRevisa(card, contexto)) ok = "Tarea completada. Quedó registrada tu revisión.";
               }
               actualizar({ estado: e.id as Estado, orden: Date.now() }, ok);
@@ -237,12 +247,15 @@ function Contenido({
 
       <Planificacion
         card={card}
+        uid={uid}
         esStaff={esStaff}
         puedeEditar={puedeEditar}
         integrantes={integrantes}
+        individual={esTableroIndividual(contexto)}
         perfiles={perfiles}
         guardando={guardando}
         actualizar={actualizar}
+        resaltar={resaltarResponsables}
       />
 
       <Revision card={card} uid={uid} contexto={contexto} perfiles={perfiles} guardando={guardando} actualizar={actualizar} />
@@ -325,26 +338,33 @@ type Actualizar = (patch: Partial<Card>, ok?: string) => Promise<void>;
 
 function Planificacion({
   card,
+  uid,
   esStaff,
   puedeEditar,
   integrantes,
+  individual,
   perfiles,
   guardando,
   actualizar,
+  resaltar,
 }: {
   card: Card;
+  uid: string;
   esStaff: boolean;
   puedeEditar: boolean;
   integrantes: string[];
+  individual: boolean;
   perfiles: Record<string, Perfil | undefined>;
   guardando: boolean;
   actualizar: Actualizar;
+  resaltar: number;
 }) {
   const congelada = !esStaff && card.estado !== "backlog" && card.asignados.length > 0;
   const puedePlanificar = puedeEditar && !congelada && !guardando;
   const venc = estadoVencimiento(card.fecha_limite, card.estado);
-  // Los responsables se eligen primero y se guardan juntos: si la tarea ya arrancó,
-  // guardar de a uno congelaría la asignación después del primer clic.
+  // Si la tarea ya arrancó (y no sos docente), la primera asignación la congela:
+  // en ese caso se eligen todas primero y se guardan juntas. Si no, se guarda al tocar.
+  const seCongela = !esStaff && card.estado !== "backlog";
   const [borrador, setBorrador] = useState<string[]>(card.asignados);
   const asignadosKey = card.asignados.join(",");
   useEffect(() => {
@@ -353,17 +373,25 @@ function Planificacion({
   }, [asignadosKey]);
   const cambioAsignados =
     borrador.length !== card.asignados.length || borrador.some((id) => !card.asignados.includes(id));
-  const seCongela = !esStaff && card.estado !== "backlog";
+  const sinResponsables = card.asignados.length === 0 && !individual;
+  const seccionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (resaltar > 0) seccionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [resaltar]);
 
   function alternar(id: string) {
-    setBorrador((b) => (b.includes(id) ? b.filter((x) => x !== id) : [...b, id]));
+    const next = borrador.includes(id) ? borrador.filter((x) => x !== id) : [...borrador, id];
+    setBorrador(next);
+    if (!seCongela) actualizar({ asignados: next }, "Responsables actualizados");
   }
 
   async function guardarAsignados() {
-    if (seCongela && borrador.length > 0 &&
+    if (borrador.length > 0 &&
       !confirm("La tarea ya arrancó: después de guardar no vas a poder cambiar los responsables. ¿Guardar?")) return;
     await actualizar({ asignados: borrador }, "Responsables guardados");
   }
+
+  const puedoAsignarme = puedePlanificar && integrantes.includes(uid) && !borrador.includes(uid);
 
   return (
     <section className="grid gap-4 rounded-2xl border-2 border-ink p-4 sm:grid-cols-2">
@@ -411,16 +439,39 @@ function Planificacion({
           ))}
         </div>
       </div>
-      <div className="grid gap-1.5 sm:col-span-2">
-        <Label className="flex items-center gap-1.5">
-          <Users2 className="h-4 w-4" /> Responsables
-        </Label>
+      <div
+        ref={seccionRef}
+        className={cn(
+          "grid gap-2 rounded-xl sm:col-span-2",
+          sinResponsables && puedeEditar && "border-2 border-dashed border-primary bg-primary/5 p-3",
+          resaltar > 0 && sinResponsables && "ring-4 ring-primary/40",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label className="flex items-center gap-1.5">
+            <Users2 className="h-4 w-4" /> Responsables
+          </Label>
+          {puedoAsignarme && (
+            <Button type="button" size="sm" variant="outline" onClick={() => alternar(uid)}>
+              <UserPlus /> Asignarme
+            </Button>
+          )}
+        </div>
+        {sinResponsables && puedeEditar && (
+          <p className="text-sm font-semibold text-primary">
+            Esta tarea no tiene responsables. Agregá al menos una persona para poder completarla.
+          </p>
+        )}
         {integrantes.length === 0 ? (
           <p className="text-sm text-muted-foreground">El grupo todavía no tiene integrantes.</p>
         ) : (
           <>
             {puedePlanificar && (
-              <p className="text-xs text-muted-foreground">Tocá una o más personas y después guardá.</p>
+              <p className="text-xs text-muted-foreground">
+                {seCongela
+                  ? "Elegí una o más personas y después tocá «Guardar responsables»."
+                  : "Tocá una persona para agregarla o quitarla."}
+              </p>
             )}
             <div className="flex flex-wrap gap-2">
               {integrantes.map((id) => {
@@ -432,19 +483,22 @@ function Planificacion({
                     aria-pressed={activo}
                     disabled={!puedePlanificar}
                     onClick={() => alternar(id)}
+                    title={activo ? "Quitar como responsable" : "Agregar como responsable"}
                     className={cn(
-                      "flex items-center gap-2 rounded-full border-2 border-ink py-0.5 pl-0.5 pr-3 text-sm font-semibold transition disabled:cursor-not-allowed",
-                      activo ? "bg-secondary text-secondary-foreground" : "bg-card hover:bg-muted disabled:opacity-60",
+                      "flex items-center gap-2 rounded-full border-2 py-0.5 pl-0.5 pr-3 text-sm font-semibold transition disabled:cursor-not-allowed",
+                      activo
+                        ? "border-ink bg-secondary text-secondary-foreground"
+                        : "border-dashed border-ink/60 bg-card hover:border-solid hover:border-ink hover:bg-muted disabled:opacity-60",
                     )}
                   >
                     <Avatar id={id} nombre={perfiles[id]?.nombre} size="sm" />
                     {perfiles[id]?.nombre ?? "Integrante"}
-                    {activo && <Check className="h-3.5 w-3.5" />}
+                    {activo ? <Check className="h-3.5 w-3.5" /> : puedePlanificar && <Plus className="h-3.5 w-3.5" />}
                   </button>
                 );
               })}
             </div>
-            {puedePlanificar && cambioAsignados && (
+            {puedePlanificar && seCongela && cambioAsignados && (
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setBorrador(card.asignados)}>
                   Descartar
