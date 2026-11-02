@@ -52,6 +52,8 @@ type Extra = {
   esMiembro: boolean;
   esIndependiente: boolean;
   misEvaluaciones: EvaluacionPar[];
+  /** Abrir con la sección de responsables destacada (p. ej. al intentar completar sin responsables). */
+  resaltarAlAbrir?: boolean;
 };
 
 export function CardDialog({
@@ -109,6 +111,7 @@ function Contenido({
   esMiembro,
   esIndependiente,
   misEvaluaciones,
+  resaltarAlAbrir,
 }: {
   card: Card;
   onClose: () => void;
