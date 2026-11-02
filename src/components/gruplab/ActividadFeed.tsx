@@ -18,6 +18,9 @@ const COLOR_ACCION: Record<string, string> = {
   reabrir: "bg-destructive",
   crear_grupo: "bg-primary",
   editar_grupo: "bg-muted",
+  finalizar_grupo: "bg-sun",
+  editar_nota_final: "bg-sun",
+  reabrir_grupo: "bg-secondary",
 };
 
 function etiquetaDia(iso: string) {

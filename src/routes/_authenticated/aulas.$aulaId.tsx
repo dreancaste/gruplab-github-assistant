@@ -214,10 +214,16 @@ function AulaPage() {
                       ) : (
                         <span className="text-xs text-muted-foreground">Sin integrantes</span>
                       )}
-                      {g.promedio != null && (
-                        <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-sun px-2 py-0.5 text-sm font-bold">
-                          <Star className="h-3.5 w-3.5" /> {g.promedio.toFixed(1)}
+                      {g.finalizado_en && g.nota_final != null ? (
+                        <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-ink px-2 py-0.5 text-sm font-bold text-paper">
+                          <Lock className="h-3.5 w-3.5" /> Nota final {Number(g.nota_final).toFixed(1)}
                         </span>
+                      ) : (
+                        g.promedio != null && (
+                          <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-sun px-2 py-0.5 text-sm font-bold">
+                            <Star className="h-3.5 w-3.5" /> {g.promedio.toFixed(1)}
+                          </span>
+                        )
                       )}
                     </div>
                   </>
@@ -417,6 +423,11 @@ function ResumenAula() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
+                    {g.finalizado_en && g.nota_final != null && (
+                      <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-ink px-2 py-0.5 text-xs font-bold text-paper">
+                        <Lock className="h-3 w-3" /> Final {Number(g.nota_final).toFixed(1)}
+                      </span>
+                    )}
                     {g.promedio != null && (
                       <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-sun px-2 py-0.5 text-xs font-bold">
                         <Star className="h-3 w-3" /> {g.promedio.toFixed(1)}

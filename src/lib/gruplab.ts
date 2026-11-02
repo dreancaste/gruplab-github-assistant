@@ -329,6 +329,9 @@ export const ACCION_TEXTO: Record<string, string> = {
   reabrir: "reabrió",
   crear_grupo: "creó el grupo",
   editar_grupo: "cambió el nombre del grupo:",
+  finalizar_grupo: "finalizó el trabajo.",
+  editar_nota_final: "cambió la nota final.",
+  reabrir_grupo: "reabrió el trabajo del grupo",
 };
 
 /** Texto de la acción, más específico cuando una tarea cambia de columna. */
