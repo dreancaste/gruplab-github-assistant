@@ -36,7 +36,7 @@ export function KanbanBoard({
   cards: Card[];
   perfiles: Record<string, Perfil | undefined>;
   puedeEditar: boolean;
-  onAbrir: (card: Card) => void;
+  onAbrir: (card: Card, resaltarResponsables?: boolean) => void;
   pendientesEval: Set<string>;
   contexto: ContextoTablero;
 }) {
@@ -53,7 +53,12 @@ export function KanbanBoard({
     let autoRevision = false;
     if (estado === "hecho") {
       const motivo = motivoNoCompletar(card, contexto);
-      if (motivo) { toast.error(motivo); return; }
+      if (motivo) {
+        toast.error(motivo);
+        // Sin responsables: abrimos la tarea para que se puedan elegir ahí mismo.
+        if (card.asignados.length === 0 && puedeEditar) onAbrir(card, true);
+        return;
+      }
       autoRevision = seAutoRevisa(card, contexto);
     }
     const orden = Date.now();

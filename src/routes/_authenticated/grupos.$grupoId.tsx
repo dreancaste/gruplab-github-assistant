@@ -58,6 +58,7 @@ function GrupoPage() {
   const { data: pares } = useSuspenseQuery(paresQuery([grupoId]));
   const { data: misEvaluaciones } = useSuspenseQuery(misEvaluacionesQuery(grupoId));
   const [abiertaId, setAbiertaId] = useState<string | null>(null);
+  const [resaltarResp, setResaltarResp] = useState(false);
   const abierta = cards.find((c) => c.id === abiertaId) ?? null;
 
   useEffect(() => {
@@ -141,7 +142,10 @@ function GrupoPage() {
             cards={cards}
             perfiles={g.perfiles}
             puedeEditar={puedeEditar}
-            onAbrir={(c: Card) => setAbiertaId(c.id)}
+            onAbrir={(c: Card, resaltar?: boolean) => {
+              setResaltarResp(!!resaltar);
+              setAbiertaId(c.id);
+            }}
             pendientesEval={pendientesEval}
             contexto={{ esIndependiente: g.grupo.es_independiente, integrantes: g.integrantes, uid: g.uid, esStaff: g.esStaff }}
           />
@@ -176,6 +180,7 @@ function GrupoPage() {
         esMiembro={g.esMiembro}
         esIndependiente={g.grupo.es_independiente}
         misEvaluaciones={misEvaluaciones}
+        resaltarAlAbrir={resaltarResp}
       />
     </main>
   );
