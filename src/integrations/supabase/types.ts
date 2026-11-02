@@ -322,28 +322,40 @@ export type Database = {
           admin_id: string | null
           aula_id: string | null
           codigo: string | null
+          comentario_final: string | null
           created_at: string
           es_independiente: boolean
+          finalizado_en: string | null
+          finalizado_por: string | null
           id: string
           nombre: string
+          nota_final: number | null
         }
         Insert: {
           admin_id?: string | null
           aula_id?: string | null
           codigo?: string | null
+          comentario_final?: string | null
           created_at?: string
           es_independiente?: boolean
+          finalizado_en?: string | null
+          finalizado_por?: string | null
           id?: string
           nombre: string
+          nota_final?: number | null
         }
         Update: {
           admin_id?: string | null
           aula_id?: string | null
           codigo?: string | null
+          comentario_final?: string | null
           created_at?: string
           es_independiente?: boolean
+          finalizado_en?: string | null
+          finalizado_por?: string | null
           id?: string
           nombre?: string
+          nota_final?: number | null
         }
         Relationships: [
           {
@@ -489,7 +501,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      finalizar_grupo: {
+        Args: { _comentario: string; _grupo_id: string; _nota: number }
+        Returns: undefined
+      }
       generar_codigo: { Args: never; Returns: string }
+      grupo_finalizado: { Args: { _grupo: string }; Returns: boolean }
       puede_gestionar_grupo: {
         Args: { _grupo: string; _user: string }
         Returns: boolean
@@ -502,6 +519,7 @@ export type Database = {
         Args: { _grupo_id: string; _user_id: string }
         Returns: boolean
       }
+      reabrir_grupo: { Args: { _grupo_id: string }; Returns: undefined }
       resolver_solicitud: {
         Args: { _aceptar: boolean; _solicitud_id: string }
         Returns: undefined
