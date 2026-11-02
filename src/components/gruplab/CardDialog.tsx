@@ -12,9 +12,11 @@ import {
   Loader2,
   Lock,
   Paperclip,
+  Plus,
   Star,
   Trash2,
   Upload,
+  UserPlus,
   Users2,
   Weight,
 } from "lucide-react";
@@ -355,7 +357,7 @@ function Planificacion({
   perfiles: Record<string, Perfil | undefined>;
   guardando: boolean;
   actualizar: Actualizar;
-  resaltar: boolean;
+  resaltar: number;
 }) {
   const congelada = !esStaff && card.estado !== "backlog" && card.asignados.length > 0;
   const puedePlanificar = puedeEditar && !congelada && !guardando;
@@ -374,7 +376,7 @@ function Planificacion({
   const sinResponsables = card.asignados.length === 0 && !individual;
   const seccionRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (resaltar) seccionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (resaltar > 0) seccionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [resaltar]);
 
   function alternar(id: string) {
@@ -442,7 +444,7 @@ function Planificacion({
         className={cn(
           "grid gap-2 rounded-xl sm:col-span-2",
           sinResponsables && puedeEditar && "border-2 border-dashed border-primary bg-primary/5 p-3",
-          resaltar && "ring-4 ring-primary/40",
+          resaltar > 0 && sinResponsables && "ring-4 ring-primary/40",
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
