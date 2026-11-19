@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "sdk_version": "3.6.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://pbdbzoybgehyzmlldyge.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "gruplab",
+      "version": "0.1.0",
+      "title": "Gruplab"
+    },
+    "tools": [
+      {
+        "name": "listar_grupos",
+        "title": "Listar mis grupos",
+        "description": "Lista los grupos y tableros a los que pertenece el usuario, con su aula.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_tareas",
+        "title": "Listar tareas de un grupo",
+        "description": "Lista las tareas (cards) de un grupo con su estado, fecha límite y esfuerzo.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "grupo_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID del grupo (de listar_grupos)."
+            }
+          },
+          "required": [
+            "grupo_id"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "crear_tarea",
+        "title": "Crear tarea",
+        "description": "Crea una tarea nueva en el backlog de un grupo del usuario.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "grupo_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID del grupo."
+            },
+            "titulo": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Título de la tarea."
+            },
+            "descripcion": {
+              "description": "Descripción opcional.",
+              "type": "string",
+              "maxLength": 4000
+            }
+          },
+          "required": [
+            "grupo_id",
+            "titulo"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

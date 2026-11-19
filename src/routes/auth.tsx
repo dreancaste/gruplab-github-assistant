@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/gruplab/Logo";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 type Modo = "ingreso" | "registro" | "olvide";
 
@@ -31,14 +32,8 @@ export const Route = createFileRoute("/auth")({
 });
 
 function destinoSeguro(r?: string) {
-  if (!r) return "/espacios";
-  try {
-    const u = new URL(r, window.location.origin);
-    if (u.origin !== window.location.origin) return "/espacios";
-    return u.pathname + u.search;
-  } catch {
-    return "/espacios";
-  }
+  const p = oauthReturnPath(r);
+  return p === "/" ? "/espacios" : p;
 }
 
 function AuthPage() {
@@ -54,7 +49,7 @@ function AuthPage() {
   const irADestino = () => {
     const guardado = sessionStorage.getItem("gruplab:redirect") ?? undefined;
     sessionStorage.removeItem("gruplab:redirect");
-    navigate({ to: destinoSeguro(search.redirect ?? guardado), replace: true });
+    navigate({ href: destinoSeguro(search.redirect ?? guardado), replace: true });
   };
 
   useEffect(() => {
@@ -79,7 +74,7 @@ function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/espacios", data: { nombre } },
+          options: { emailRedirectTo: new URL(destinoSeguro(search.redirect), window.location.origin).href, data: { nombre } },
         });
         if (error) throw error;
         if (!data.session) setEnviado("registro");
